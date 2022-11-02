@@ -27,6 +27,13 @@ START_NAMESPACE_DISTRHO
 class DistrhoPluginOpal : public Plugin
 {
 public:
+    enum parameter_t {
+        PARAM_NUMVOICES,
+        PARAM_DEPTH,
+        PARAM_FREQUENCY,
+        NUM_PARAMETERS
+    };
+
     DistrhoPluginOpal();
     ~DistrhoPluginOpal() override;
 
@@ -91,6 +98,15 @@ protected:
     // -------------------------------------------------------------------
 
 private:
+    class Delay;
+    class BSplineNoise;
+
+    Delay*          delay=nullptr;
+    BSplineNoise*   noise=nullptr;
+
+    int     numvoices=0;
+    float   depth=0.0f;
+    float   frequency=0.0f;
 
     DISTRHO_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(DistrhoPluginOpal)
 };
