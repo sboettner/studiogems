@@ -1,6 +1,6 @@
 include ../dpf/Makefile.base.mk
 
-FILES=cairohelper.cpp
+FILES=cairohelper.cpp knob.cpp
 
 DPF_PATH=../dpf
 
