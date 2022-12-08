@@ -2,8 +2,8 @@ include dpf/Makefile.base.mk
 
 all: dgl plugins
 
-.PHONY: plugins
-plugins: dgl
+.PHONY: plugins ui
+plugins: dgl ui
 	$(MAKE) all -C plugins
 
 
@@ -12,6 +12,9 @@ ifeq ($(HAVE_CAIRO_OR_OPENGL),true)
 	$(MAKE) -C dpf/dgl FILE_BROWSER_DISABLED=true
 endif
 
+
+ui:
+	$(MAKE) -C ui
 
 install:
 	install -D -t /usr/local/lib/ladspa bin/OpalChorus-ladspa.so
