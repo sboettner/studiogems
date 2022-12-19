@@ -126,8 +126,6 @@ void GraphDisplay::plot(cairo_t* cr, float x0, float x1, float y0, float y1, std
         ds=dt;
     }
 
-    cairo_set_line_width(cr, 3.0);
-    cairo_set_line_cap(cr, CAIRO_LINE_CAP_ROUND);
     cairo_stroke(cr);
 }
 
