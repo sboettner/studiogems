@@ -469,6 +469,7 @@ void DistrhoUIOnyx::parameterChanged(uint32_t index, float value)
     oscbpanel->parameterChanged(index, value);
     osccpanel->parameterChanged(index, value);
     oscdpanel->parameterChanged(index, value);
+    excpanel->parameterChanged(index, value);
 }
 
 
