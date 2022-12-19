@@ -684,6 +684,14 @@ void DistrhoPluginOnyx::initParameter(uint32_t index, Parameter& parameter)
         parameter.ranges.min = 0.1f;
         parameter.ranges.max = 100.0f;
         break;
+    case PARAM_UNISON_WIDTH:
+        parameter.hints      = kParameterIsLogarithmic;
+        parameter.name       = "Unison Width";
+        parameter.symbol     = "uniwidth";
+        parameter.ranges.def = 1.0f;
+        parameter.ranges.min = 0.0f;
+        parameter.ranges.max = 1.0f;
+        break;
     }
 }
 
@@ -741,6 +749,8 @@ float DistrhoPluginOnyx::getParameterValue(uint32_t index) const
         return unison_voices;
     case PARAM_UNISON_DETUNE:
         return unison_detune;
+    case PARAM_UNISON_WIDTH:
+        return unison_width;
     default:
         return 0.0;
     }
@@ -825,6 +835,9 @@ void DistrhoPluginOnyx::setParameterValue(uint32_t index, float value)
     case PARAM_UNISON_DETUNE:
         unison_detune=value;
         break;
+    case PARAM_UNISON_WIDTH:
+        unison_width=value;
+        break;
     }
 }
 
@@ -851,7 +864,7 @@ void DistrhoPluginOnyx::run(const float**, float** outputs, uint32_t frames, con
             if (unison_voices>1)
                 for (int i=0;i<unison_voices;i++) {
                     float t=2.0f*i/(unison_voices-1) - 1.0f;
-                    voices.emplace_back(new Voice(*this, midievents->data[1], 2.0f*getSampleRate(), 0.01f*t*unison_detune, (1.0f+t)/unison_voices, (1.0f-t)/unison_voices));
+                    voices.emplace_back(new Voice(*this, midievents->data[1], 2.0f*getSampleRate(), 0.01f*t*unison_detune, (1.0f+t*unison_width)/unison_voices, (1.0f-t*unison_width)/unison_voices));
                 }
             else
                 voices.emplace_back(new Voice(*this, midievents->data[1], 2.0f*getSampleRate(), 0.0f));

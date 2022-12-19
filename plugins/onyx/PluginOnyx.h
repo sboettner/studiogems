@@ -61,6 +61,7 @@ public:
         PARAM_EXCITATION_RELEASE,
         PARAM_UNISON_VOICES,
         PARAM_UNISON_DETUNE,
+        PARAM_UNISON_WIDTH,
         NUM_PARAMETERS
     };
 
@@ -161,6 +162,7 @@ private:
 
     int                     unison_voices=1;
     float                   unison_detune=10.0f;
+    float                   unison_width=1.0f;
 
     std::vector<std::unique_ptr<Voice>>     voices;
     Downsampler*            downsamplers=nullptr;

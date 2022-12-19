@@ -318,6 +318,7 @@ private:
 
     ScopedPointer<Knob>             knob_unison_voices;
     ScopedPointer<Knob>             knob_unison_detune;
+    ScopedPointer<Knob>             knob_unison_width;
 };
 
 
@@ -371,6 +372,12 @@ ExcitationPanel::ExcitationPanel(DistrhoUIOnyx* mainwnd, int x0, int y0):
     knob_unison_detune->setRange(0.1f, 100.0f);
     knob_unison_detune->setId(DistrhoPluginOnyx::PARAM_UNISON_DETUNE);
     knob_unison_detune->setCallback(this);    
+
+    knob_unison_width=new Knob(this, Knob::Size::SMALL, x0+208, y0+176, 96, 120);
+    knob_unison_width->set_name("U. Width");
+    knob_unison_width->setRange(0.0f, 1.0f);
+    knob_unison_width->setId(DistrhoPluginOnyx::PARAM_UNISON_WIDTH);
+    knob_unison_width->setCallback(this);    
 }
 
 
@@ -397,6 +404,9 @@ void ExcitationPanel::parameterChanged(uint32_t index, float value)
         break;
     case DistrhoPluginOnyx::PARAM_UNISON_DETUNE:
         knob_unison_detune->setValue(value);
+        break;
+    case DistrhoPluginOnyx::PARAM_UNISON_WIDTH:
+        knob_unison_width->setValue(value);
         break;
     }
 }
