@@ -148,7 +148,7 @@ void Knob::text_entered(SubWidget* widget, const char* text)
     if (isInteger())
         val=rint(val);
 
-    setValue(val);
+    setValue(val, true);
 
     numberedit=nullptr;
 
