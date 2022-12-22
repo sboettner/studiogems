@@ -20,12 +20,13 @@
 
 #include <cairohelper.h>
 #include <Cairo.hpp>
+#include "lineedit.h"
 
 namespace StudioGemsUI {
 
 USE_NAMESPACE_DISTRHO
 
-class Knob:public CairoSubWidget, public KnobEventHandler {
+class Knob:public CairoSubWidget, public KnobEventHandler, LineEdit::Callback {
 public:
     enum class Size {
         TINY,
@@ -36,6 +37,7 @@ public:
     };
 
     Knob(Widget* parent, Size size, uint x0, uint y0, uint width, uint height);
+    ~Knob();
 
     void set_name(const char*);
     void set_color(const Color&);
@@ -44,6 +46,10 @@ protected:
     bool onMouse(const MouseEvent& event) override;
     bool onMotion(const MotionEvent& event) override;
     bool onScroll(const ScrollEvent& event) override;
+
+    void text_changed(SubWidget*, const char*) override;
+    void text_entered(SubWidget*, const char*) override;
+    void text_cancelled(SubWidget*, const char*) override;
 
     void onCairoDisplay(const CairoGraphicsContext&) override;
 
@@ -58,6 +64,8 @@ private:
     GlowSurface     glow;
     TextLayout      header_layout;
     TextLayout      value_layout;
+
+    ScopedPointer<LineEdit>   numberedit;
 };
 
 

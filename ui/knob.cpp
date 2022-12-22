@@ -21,6 +21,7 @@ namespace StudioGemsUI {
 
 USE_NAMESPACE_DISTRHO
 
+
 Knob::Knob(Widget* parent, Size size, uint x0, uint y0, uint width, uint height):
     CairoSubWidget(parent), 
     KnobEventHandler(this), 
@@ -87,6 +88,11 @@ Knob::Knob(Widget* parent, Size size, uint x0, uint y0, uint width, uint height)
 }
 
 
+Knob::~Knob()
+{
+}
+
+
 void Knob::set_name(const char* name)
 {
     header_layout.set_text(name);
@@ -101,17 +107,60 @@ void Knob::set_color(const Color& col)
 
 bool Knob::onMouse(const MouseEvent& event)
 {
+    if (event.press && event.button==2 && contains(event.pos)) {
+        if (numberedit)
+            numberedit=nullptr;
+        else {
+            numberedit=new LineEdit(this, getAbsoluteX(), getAbsoluteY()+getHeight()-24, getWidth(), 24);
+            numberedit->set_callback(this);
+            numberedit->set_textf("%f", getValue());
+        }
+
+        repaint();
+    }
+
     return mouseEvent(event);
 }
+
 
 bool Knob::onMotion(const MotionEvent& event)
 {
     return motionEvent(event);
 }
 
+
 bool Knob::onScroll(const ScrollEvent& event)
 {
     return scrollEvent(event);
+}
+
+
+void Knob::text_changed(SubWidget* widget, const char* text)
+{
+}
+
+
+void Knob::text_entered(SubWidget* widget, const char* text)
+{
+    double val;
+    sscanf(text, "%lf", &val);
+
+    if (isInteger())
+        val=rint(val);
+
+    setValue(val);
+
+    numberedit=nullptr;
+
+    repaint();
+}
+
+
+void Knob::text_cancelled(SubWidget* widget, const char* text)
+{
+    numberedit=nullptr;
+
+    repaint();
 }
 
 
