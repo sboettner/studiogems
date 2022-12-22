@@ -93,6 +93,8 @@ public:
   
     void show(cairo_t*);
 
+    void get_cursor_pos(int index, double& x, double& y, double& h);
+
     static void register_font_file(const char*);
 
 private:

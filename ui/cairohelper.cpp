@@ -253,6 +253,17 @@ void TextLayout::show(cairo_t* cr)
 }
 
 
+void TextLayout::get_cursor_pos(int index, double& x, double& y, double& h)
+{
+    PangoRectangle rect;
+    pango_layout_get_cursor_pos(layout, index, &rect, nullptr);
+
+    x=(double) rect.x / PANGO_SCALE;
+    y=(double) rect.y / PANGO_SCALE;
+    h=(double) rect.height / PANGO_SCALE;
+}
+
+
 void TextLayout::register_font_file(const char* filename)
 {
     FcConfigAppFontAddFile(FcConfigGetCurrent(), (const FcChar8*) filename);
