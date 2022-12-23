@@ -213,7 +213,7 @@ OscillatorPanel::OscillatorPanel(DistrhoUIOnyx* mainwnd, int x0, int y0, int par
     knob_amplitude->setId(DistrhoPluginOnyx::PARAM_OSCA_AMPLITUDE + paramindex);
 
     knob_excitation=new Knob(this, Knob::Size::SMALL, x0+376, y0+192, 96, 120);
-    knob_excitation->set_name("Excitation");
+    knob_excitation->set_name("Envelope");
     knob_excitation->setRange(0.0f, 4.0f);
     knob_excitation->setCallback(this);
     knob_excitation->setId(DistrhoPluginOnyx::PARAM_OSCA_EXCITATION + paramindex);
@@ -310,7 +310,6 @@ private:
     DistrhoUIOnyx*                  mainwnd;
 
     ScopedPointer<TextLabel>        header;
-    ScopedPointer<Knob>             knob_burst;
     ScopedPointer<Knob>             knob_attack;
     ScopedPointer<Knob>             knob_sustain;
     ScopedPointer<Knob>             knob_decay;
@@ -323,38 +322,32 @@ private:
 
 
 ExcitationPanel::ExcitationPanel(DistrhoUIOnyx* mainwnd, int x0, int y0):
-    RaisedPanel(mainwnd, x0, y0, 512, 656),
+    RaisedPanel(mainwnd, x0, y0, 416, 656),
     mainwnd(mainwnd)
 {
     header=new TextLabel(this, x0+12, y0+12, 480, 32, 8);
     header->set_color(Color(0.6f, 0.8f, 1.0f));
-    header->set_text("Excitation Model");
+    header->set_text("Envelope");
 
-    knob_burst=new Knob(this, Knob::Size::SMALL, x0+16, y0+48, 96, 120);
-    knob_burst->set_name("Burst");
-    knob_burst->setRange(0.0f, 1.0f);
-    knob_burst->setId(DistrhoPluginOnyx::PARAM_EXCITATION_BURST);
-    knob_burst->setCallback(this);
-
-    knob_attack=new Knob(this, Knob::Size::SMALL, x0+112, y0+48, 96, 120);
+    knob_attack=new Knob(this, Knob::Size::SMALL, x0+16, y0+48, 96, 120);
     knob_attack->set_name("Attack");
     knob_attack->setRange(0.1f, 1000.0f);
     knob_attack->setId(DistrhoPluginOnyx::PARAM_EXCITATION_ATTACK);
     knob_attack->setCallback(this);
 
-    knob_sustain=new Knob(this, Knob::Size::SMALL, x0+208, y0+48, 96, 120);
+    knob_sustain=new Knob(this, Knob::Size::SMALL, x0+112, y0+48, 96, 120);
     knob_sustain->set_name("Sustain");
     knob_sustain->setRange(0.0f, 1.0f);
     knob_sustain->setId(DistrhoPluginOnyx::PARAM_EXCITATION_SUSTAIN);
     knob_sustain->setCallback(this);
 
-    knob_decay=new Knob(this, Knob::Size::SMALL, x0+304, y0+48, 96, 120);
+    knob_decay=new Knob(this, Knob::Size::SMALL, x0+208, y0+48, 96, 120);
     knob_decay->set_name("Decay");
     knob_decay->setRange(0.1f, 1000.0f);
     knob_decay->setId(DistrhoPluginOnyx::PARAM_EXCITATION_DECAY);
     knob_decay->setCallback(this);
 
-    knob_release=new Knob(this, Knob::Size::SMALL, x0+400, y0+48, 96, 120);
+    knob_release=new Knob(this, Knob::Size::SMALL, x0+304, y0+48, 96, 120);
     knob_release->set_name("Release");
     knob_release->setRange(0.1f, 1000.0f);
     knob_release->setId(DistrhoPluginOnyx::PARAM_EXCITATION_RELEASE);
@@ -384,9 +377,6 @@ ExcitationPanel::ExcitationPanel(DistrhoUIOnyx* mainwnd, int x0, int y0):
 void ExcitationPanel::parameterChanged(uint32_t index, float value)
 {
     switch (index) {
-    case DistrhoPluginOnyx::PARAM_EXCITATION_BURST:
-        knob_burst->setValue(value);
-        break;
     case DistrhoPluginOnyx::PARAM_EXCITATION_ATTACK:
         knob_attack->setValue(value);
         break;
@@ -432,7 +422,7 @@ void ExcitationPanel::knobValueChanged(SubWidget* widget, float value)
 
 DistrhoUIOnyx::DistrhoUIOnyx()
 {
-    setSize(1728, 736);
+    setSize(1632, 736);
 
     TextLayout::register_font_file("/home/stb/fonts/orbitron-master/Orbitron Black.otf");
     TextLayout::register_font_file("/home/stb/fonts/orbitron-master/Orbitron Bold.otf");

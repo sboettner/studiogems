@@ -204,7 +204,7 @@ class DistrhoPluginOnyx::Excitation {
 public:
     Excitation(const ExcitationParameters& params, float samplerate):samplerate(samplerate)
     {
-        latent_energy=params.burst;
+        latent_energy=1.0f;
 
         attack_rate=-expm1f(-1000.0f/(params.attack*samplerate));
         decay_rate=-expm1f(-1000.0f/(params.decay*samplerate));
@@ -219,7 +219,7 @@ public:
     {
         alive=false;
         latent_energy=0.0f;
-        sustain_rate=0.0f;
+        sustain_energy=0.0f;
     }
 
     bool decayed() const
@@ -243,7 +243,9 @@ public:
             float u=latent_energy*attack_rate;
             latent_energy-=u;
             energy+=u;
-            energy+=sustain_rate;
+            sustain_energy+=u;
+
+            energy+=sustain_energy*sustain_rate;
 
             buffer[fillptr++ & bufmask]=energy;
         }
@@ -263,6 +265,7 @@ private:
     uint    fillptr=0;
 
     float   energy=0.0f;
+    float   sustain_energy=0.0f;
     float   latent_energy=0.0f;
 
     float   attack_rate=0.0f;
@@ -628,14 +631,6 @@ void DistrhoPluginOnyx::initParameter(uint32_t index, Parameter& parameter)
         parameter.ranges.min = 0.0f;
         parameter.ranges.max = 1.0f;
         break;
-    case PARAM_EXCITATION_BURST:
-        parameter.hints      = 0;
-        parameter.name       = "Burst";
-        parameter.symbol     = "burst";
-        parameter.ranges.def = 1.0f;
-        parameter.ranges.min = 0.0f;
-        parameter.ranges.max = 1.0f;
-        break;
     case PARAM_EXCITATION_ATTACK:
         parameter.hints      = kParameterIsLogarithmic;
         parameter.name       = "Attack";
@@ -735,8 +730,6 @@ float DistrhoPluginOnyx::getParameterValue(uint32_t index) const
         return oscparams[2].excitation;
     case PARAM_OSCC_LFO:
         return oscparams[2].lfo;
-    case PARAM_EXCITATION_BURST:
-        return excparams.burst;
     case PARAM_EXCITATION_ATTACK:
         return excparams.attack;
     case PARAM_EXCITATION_SUSTAIN:
@@ -813,9 +806,6 @@ void DistrhoPluginOnyx::setParameterValue(uint32_t index, float value)
         break;
     case PARAM_OSCC_LFO:
         oscparams[2].lfo=value;
-        break;
-    case PARAM_EXCITATION_BURST:
-        excparams.burst=value;
         break;
     case PARAM_EXCITATION_ATTACK:
         excparams.attack=value;
