@@ -481,6 +481,10 @@ DistrhoUIOnyx::DistrhoUIOnyx()
     TextLayout::register_font_file("/home/stb/fonts/orbitron-master/Orbitron Medium.otf");
     TextLayout::register_font_file("/home/stb/fonts/orbitron-master/Orbitron Light.otf");
 
+    title=new TextLabel(this, 12, 12, 256, 32, 8);
+    title->set_color(Color(0.6f, 0.8f, 1.0f));
+    title->set_text("Onyx FM");
+
     oscapanel=new OscillatorPanel(this, 16, 64, 0);
     oscbpanel=new OscillatorPanel(this, 608, 64, 6);
     osccpanel=new OscillatorPanel(this, 16, 400, 12);

@@ -54,6 +54,7 @@ protected:
     void onCairoDisplay(const CairoGraphicsContext&) override;
 
 private:
+    ScopedPointer<TextLabel>        title;
     ScopedPointer<OscillatorPanel>  oscapanel;
     ScopedPointer<OscillatorPanel>  oscbpanel;
     ScopedPointer<OscillatorPanel>  osccpanel;
