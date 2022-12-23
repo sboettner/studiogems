@@ -29,6 +29,7 @@ using namespace StudioGemsUI;
 
 class OscillatorPanel;
 class ExcitationPanel;
+class UnisonPanel;
 
 // -----------------------------------------------------------------------
 
@@ -58,6 +59,7 @@ private:
     ScopedPointer<OscillatorPanel>  osccpanel;
     ScopedPointer<OscillatorPanel>  oscdpanel;
     ScopedPointer<ExcitationPanel>  excpanel;
+    ScopedPointer<UnisonPanel>      unipanel;
 
     DISTRHO_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(DistrhoUIOnyx)
 };

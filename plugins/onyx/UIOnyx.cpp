@@ -314,15 +314,11 @@ private:
     ScopedPointer<Knob>             knob_sustain;
     ScopedPointer<Knob>             knob_decay;
     ScopedPointer<Knob>             knob_release;
-
-    ScopedPointer<Knob>             knob_unison_voices;
-    ScopedPointer<Knob>             knob_unison_detune;
-    ScopedPointer<Knob>             knob_unison_width;
 };
 
 
 ExcitationPanel::ExcitationPanel(DistrhoUIOnyx* mainwnd, int x0, int y0):
-    RaisedPanel(mainwnd, x0, y0, 416, 656),
+    RaisedPanel(mainwnd, x0, y0, 416, 176),
     mainwnd(mainwnd)
 {
     header=new TextLabel(this, x0+12, y0+12, 480, 32, 8);
@@ -352,25 +348,6 @@ ExcitationPanel::ExcitationPanel(DistrhoUIOnyx* mainwnd, int x0, int y0):
     knob_release->setRange(0.1f, 1000.0f);
     knob_release->setId(DistrhoPluginOnyx::PARAM_EXCITATION_RELEASE);
     knob_release->setCallback(this);
-
-    knob_unison_voices=new Knob(this, Knob::Size::SMALL, x0+16, y0+176, 96, 120);
-    knob_unison_voices->set_name("U. Voices");
-    knob_unison_voices->setRange(1.0f, 10.0f);
-    knob_unison_voices->setStep(1.0f);
-    knob_unison_voices->setId(DistrhoPluginOnyx::PARAM_UNISON_VOICES);
-    knob_unison_voices->setCallback(this);
-
-    knob_unison_detune=new Knob(this, Knob::Size::SMALL, x0+112, y0+176, 96, 120);
-    knob_unison_detune->set_name("U. Detune");
-    knob_unison_detune->setRange(0.1f, 100.0f);
-    knob_unison_detune->setId(DistrhoPluginOnyx::PARAM_UNISON_DETUNE);
-    knob_unison_detune->setCallback(this);    
-
-    knob_unison_width=new Knob(this, Knob::Size::SMALL, x0+208, y0+176, 96, 120);
-    knob_unison_width->set_name("U. Width");
-    knob_unison_width->setRange(0.0f, 1.0f);
-    knob_unison_width->setId(DistrhoPluginOnyx::PARAM_UNISON_WIDTH);
-    knob_unison_width->setCallback(this);    
 }
 
 
@@ -389,15 +366,6 @@ void ExcitationPanel::parameterChanged(uint32_t index, float value)
     case DistrhoPluginOnyx::PARAM_EXCITATION_RELEASE:
         knob_release->setValue(value);
         break;
-    case DistrhoPluginOnyx::PARAM_UNISON_VOICES:
-        knob_unison_voices->setValue(value);
-        break;
-    case DistrhoPluginOnyx::PARAM_UNISON_DETUNE:
-        knob_unison_detune->setValue(value);
-        break;
-    case DistrhoPluginOnyx::PARAM_UNISON_WIDTH:
-        knob_unison_width->setValue(value);
-        break;
     }
 }
 
@@ -415,6 +383,90 @@ void ExcitationPanel::knobDragFinished(SubWidget* widget)
 
 
 void ExcitationPanel::knobValueChanged(SubWidget* widget, float value)
+{
+    mainwnd->setParameterValue(widget->getId(), value);
+}
+
+
+class UnisonPanel:public RaisedPanel, KnobEventHandler::Callback {
+public:
+    UnisonPanel(DistrhoUIOnyx*, int x0, int y0);
+
+    void parameterChanged(uint32_t index, float value);
+
+protected:
+    void knobDragStarted(SubWidget* widget) override;
+    void knobDragFinished(SubWidget* widget) override;
+    void knobValueChanged(SubWidget* widget, float value) override;
+
+private:
+    DistrhoUIOnyx*                  mainwnd;
+
+    ScopedPointer<TextLabel>        header;
+    ScopedPointer<Knob>             knob_voices;
+    ScopedPointer<Knob>             knob_detune;
+    ScopedPointer<Knob>             knob_width;
+};
+
+
+UnisonPanel::UnisonPanel(DistrhoUIOnyx* mainwnd, int x0, int y0):
+    RaisedPanel(mainwnd, x0, y0, 416, 176),
+    mainwnd(mainwnd)
+{
+    header=new TextLabel(this, x0+12, y0+12, 480, 32, 8);
+    header->set_color(Color(0.6f, 0.8f, 1.0f));
+    header->set_text("Unison");
+
+    knob_voices=new Knob(this, Knob::Size::SMALL, x0+16, y0+48, 96, 120);
+    knob_voices->set_name("Voices");
+    knob_voices->setRange(1.0f, 10.0f);
+    knob_voices->setStep(1.0f);
+    knob_voices->setId(DistrhoPluginOnyx::PARAM_UNISON_VOICES);
+    knob_voices->setCallback(this);
+
+    knob_detune=new Knob(this, Knob::Size::SMALL, x0+112, y0+48, 96, 120);
+    knob_detune->set_name("Detune");
+    knob_detune->setRange(0.1f, 100.0f);
+    knob_detune->setId(DistrhoPluginOnyx::PARAM_UNISON_DETUNE);
+    knob_detune->setCallback(this);    
+
+    knob_width=new Knob(this, Knob::Size::SMALL, x0+208, y0+48, 96, 120);
+    knob_width->set_name("Width");
+    knob_width->setRange(0.0f, 1.0f);
+    knob_width->setId(DistrhoPluginOnyx::PARAM_UNISON_WIDTH);
+    knob_width->setCallback(this);    
+}
+
+
+void UnisonPanel::parameterChanged(uint32_t index, float value)
+{
+    switch (index) {
+    case DistrhoPluginOnyx::PARAM_UNISON_VOICES:
+        knob_voices->setValue(value);
+        break;
+    case DistrhoPluginOnyx::PARAM_UNISON_DETUNE:
+        knob_detune->setValue(value);
+        break;
+    case DistrhoPluginOnyx::PARAM_UNISON_WIDTH:
+        knob_width->setValue(value);
+        break;
+    }
+}
+
+
+void UnisonPanel::knobDragStarted(SubWidget* widget)
+{
+    mainwnd->editParameter(widget->getId(), true);
+}
+
+
+void UnisonPanel::knobDragFinished(SubWidget* widget)
+{
+    mainwnd->editParameter(widget->getId(), false);
+}
+
+
+void UnisonPanel::knobValueChanged(SubWidget* widget, float value)
 {
     mainwnd->setParameterValue(widget->getId(), value);
 }
@@ -445,6 +497,8 @@ DistrhoUIOnyx::DistrhoUIOnyx()
     oscdpanel->set_color(Color(0.1f, 0.7f, 1.0f));
 
     excpanel=new ExcitationPanel(this, 1200, 64);
+
+    unipanel=new UnisonPanel(this, 1200, 256);
 }
 
 
@@ -460,6 +514,7 @@ void DistrhoUIOnyx::parameterChanged(uint32_t index, float value)
     osccpanel->parameterChanged(index, value);
     oscdpanel->parameterChanged(index, value);
     excpanel->parameterChanged(index, value);
+    unipanel->parameterChanged(index, value);
 }
 
 
