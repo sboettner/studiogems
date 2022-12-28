@@ -54,6 +54,8 @@ public:
         PARAM_OSCD_AMPLITUDE,
         PARAM_OSCD_EXCITATION,
         PARAM_OSCD_LFO,
+        PARAM_LFO_TYPE,
+        PARAM_LFO_FREQUENCY,
         PARAM_EXCITATION_ATTACK,
         PARAM_EXCITATION_SUSTAIN,
         PARAM_EXCITATION_DECAY,
@@ -68,6 +70,13 @@ public:
         WAVEFORM_SINE,
         WAVEFORM_TRIANGLE,
         WAVEFORM_PULSE
+    };
+
+    enum lfo_type_t {
+        LFO_TYPE_SINE,
+        LFO_TYPE_FALLING,
+        LFO_TYPE_RISING,
+        LFO_TYPE_ONESHOT
     };
 
     struct OscillatorParameters {
@@ -157,6 +166,9 @@ private:
 
     OscillatorParameters    oscparams[4];
     ExcitationParameters    excparams;
+
+    int                     lfo_type=0;
+    float                   lfo_frequency=1.0f;
 
     int                     unison_voices=1;
     float                   unison_detune=10.0f;

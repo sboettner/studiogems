@@ -388,6 +388,178 @@ void ExcitationPanel::knobValueChanged(SubWidget* widget, float value)
 }
 
 
+class LFODisplay:public GraphDisplay {
+public:
+    LFODisplay(Widget* parent, uint x0, uint y0, uint width, uint height);
+
+    void set_type(DistrhoPluginOnyx::lfo_type_t);
+    void set_frequency(float);
+
+protected:
+    void draw_graph(cairo_t*) override;
+
+private:
+    DistrhoPluginOnyx::lfo_type_t   type=DistrhoPluginOnyx::LFO_TYPE_SINE;
+    float                           frequency=0.0f;
+};
+
+
+LFODisplay::LFODisplay(Widget* parent, uint x0, uint y0, uint width, uint height):GraphDisplay(parent, x0, y0, width, height)
+{
+}
+
+
+void LFODisplay::set_type(DistrhoPluginOnyx::lfo_type_t t)
+{
+    type=t;
+    repaint();
+}
+
+
+void LFODisplay::set_frequency(float f)
+{
+    frequency=f;
+    repaint();
+}
+
+
+void LFODisplay::draw_graph(cairo_t* cr)
+{
+    cairo_set_source_rgb(cr, 0.2, 1.0, 0.5);
+    cairo_set_line_width(cr, 3.0);
+    cairo_set_line_cap(cr, CAIRO_LINE_CAP_ROUND);
+   
+    switch (type) {
+    case DistrhoPluginOnyx::LFO_TYPE_SINE:
+        plot(cr, 0.0f, 1.0f, -0.25f, 1.25f, [freq=2*M_PI*frequency](float t) {
+            return std::pair<float, float>(
+                expf(-1.0f+sinf(freq*t)),
+                expf(-1.0f+sinf(freq*t))*cosf(freq*t)*freq
+            );
+        });
+        break;
+    case DistrhoPluginOnyx::LFO_TYPE_FALLING:
+        plot(cr, 0.0f, 1.0f, -0.25f, 1.25f, [freq=frequency](float t) {
+            return std::pair<float, float>(
+                expf(-freq*t),
+                -freq*expf(-freq*t)
+            );
+        });
+        break;
+    case DistrhoPluginOnyx::LFO_TYPE_RISING:
+        plot(cr, 0.0f, 1.0f, -0.25f, 1.25f, [scale=1/frequency](float t) {
+            if (t>0) {
+                return std::pair<float, float>(
+                    expf(-scale/t),
+                    scale*expf(-scale/t)/(t*t)
+                );
+            }
+            else
+                return std::pair<float, float>(0.0f, 0.0f);
+        });
+        break;
+    case DistrhoPluginOnyx::LFO_TYPE_ONESHOT:
+        plot(cr, 0.0f, 1.0f, -0.25f, 1.25f, [freq=frequency](float t) {
+            if (t>0) {
+                const float s=t*freq;
+                return std::pair<float, float>(
+                    expf(2 - s - 1/s),
+                    expf(2 - s - 1/s) * (-freq + 1/(s*t))
+                );
+            }
+            else
+                return std::pair<float, float>(0.0f, 0.0f);
+        });
+        break;
+    }
+}
+
+
+class LFOPanel:public RaisedPanel, KnobEventHandler::Callback {
+public:
+    LFOPanel(DistrhoUIOnyx*, int x0, int y0);
+
+    void parameterChanged(uint32_t index, float value);
+
+protected:
+    void knobDragStarted(SubWidget* widget) override;
+    void knobDragFinished(SubWidget* widget) override;
+    void knobValueChanged(SubWidget* widget, float value) override;
+
+private:
+    DistrhoUIOnyx*                  mainwnd;
+
+    ScopedPointer<TextLabel>        header;
+    ScopedPointer<Knob>             knob_type;
+    ScopedPointer<Knob>             knob_frequency;
+    ScopedPointer<LFODisplay>       display;
+};
+
+
+LFOPanel::LFOPanel(DistrhoUIOnyx* mainwnd, int x0, int y0):
+    RaisedPanel(mainwnd, x0, y0, 416, 176),
+    mainwnd(mainwnd)
+{
+    header=new TextLabel(this, x0+12, y0+12, 480, 32, 8);
+    header->set_color(Color(0.6f, 0.8f, 1.0f));
+    header->set_text("Low Frequency Oscillator");
+
+    knob_type=new Knob(this, Knob::Size::SMALL, x0+16, y0+48, 96, 120);
+    knob_type->set_name("Type");
+    knob_type->setRange(0.0f, 3.0f);
+    knob_type->setStep(1.0f);
+    knob_type->setId(DistrhoPluginOnyx::PARAM_LFO_TYPE);
+    knob_type->setCallback(this);
+
+    knob_frequency=new Knob(this, Knob::Size::SMALL, x0+112, y0+48, 96, 120);
+    knob_frequency->set_name("Frequency");
+    knob_frequency->setRange(0.1f, 10.0f);
+    knob_frequency->setId(DistrhoPluginOnyx::PARAM_LFO_FREQUENCY);
+    knob_frequency->setCallback(this);
+
+    display=new LFODisplay(this, x0+224, y0+56, 176, 104);
+}
+
+
+void LFOPanel::parameterChanged(uint32_t index, float value)
+{
+    switch (index) {
+    case DistrhoPluginOnyx::PARAM_LFO_TYPE:
+        knob_type->setValue(value);
+        display->set_type((DistrhoPluginOnyx::lfo_type_t) value);
+        break;
+    case DistrhoPluginOnyx::PARAM_LFO_FREQUENCY:
+        knob_frequency->setValue(value);
+        display->set_frequency(value);
+        break;
+    }
+}
+
+
+void LFOPanel::knobDragStarted(SubWidget* widget)
+{
+    mainwnd->editParameter(widget->getId(), true);
+}
+
+
+void LFOPanel::knobDragFinished(SubWidget* widget)
+{
+    mainwnd->editParameter(widget->getId(), false);
+}
+
+
+void LFOPanel::knobValueChanged(SubWidget* widget, float value)
+{
+    mainwnd->setParameterValue(widget->getId(), value);
+
+    if (widget->getId()==DistrhoPluginOnyx::PARAM_LFO_TYPE)
+        display->set_type((DistrhoPluginOnyx::lfo_type_t) value);
+
+    if (widget->getId()==DistrhoPluginOnyx::PARAM_LFO_FREQUENCY)
+        display->set_frequency(value);
+}
+
+
 class UnisonPanel:public RaisedPanel, KnobEventHandler::Callback {
 public:
     UnisonPanel(DistrhoUIOnyx*, int x0, int y0);
@@ -501,8 +673,8 @@ DistrhoUIOnyx::DistrhoUIOnyx()
     oscdpanel->set_color(Color(0.1f, 0.7f, 1.0f));
 
     excpanel=new ExcitationPanel(this, 1200, 64);
-
-    unipanel=new UnisonPanel(this, 1200, 256);
+    lfopanel=new LFOPanel(this, 1200, 256);
+    unipanel=new UnisonPanel(this, 1200, 448);
 }
 
 

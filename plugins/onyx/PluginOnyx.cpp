@@ -663,6 +663,22 @@ void DistrhoPluginOnyx::initParameter(uint32_t index, Parameter& parameter)
         parameter.ranges.min = 0.1f;
         parameter.ranges.max = 1000.0f;
         break;
+    case PARAM_LFO_TYPE:
+        parameter.hints      = kParameterIsInteger;
+        parameter.name       = "LFO Type";
+        parameter.symbol     = "lfotype";
+        parameter.ranges.def = 0.0f;
+        parameter.ranges.min = 0.0f;
+        parameter.ranges.max = 3.0f;
+        break;
+    case PARAM_LFO_FREQUENCY:
+        parameter.hints      = kParameterIsLogarithmic;
+        parameter.name       = "LFO Frequency";
+        parameter.symbol     = "lfofreq";
+        parameter.ranges.def = 1.0f;
+        parameter.ranges.min = 0.1f;
+        parameter.ranges.max = 10.0f;
+        break;
     case PARAM_UNISON_VOICES:
         parameter.hints      = kParameterIsInteger;
         parameter.name       = "Unison Voices";
@@ -738,6 +754,10 @@ float DistrhoPluginOnyx::getParameterValue(uint32_t index) const
         return excparams.decay;
     case PARAM_EXCITATION_RELEASE:
         return excparams.release;
+    case PARAM_LFO_TYPE:
+        return lfo_type;
+    case PARAM_LFO_FREQUENCY:
+        return lfo_frequency;
     case PARAM_UNISON_VOICES:
         return unison_voices;
     case PARAM_UNISON_DETUNE:
@@ -818,6 +838,12 @@ void DistrhoPluginOnyx::setParameterValue(uint32_t index, float value)
         break;
     case PARAM_EXCITATION_RELEASE:
         excparams.release=value;
+        break;
+    case PARAM_LFO_TYPE:
+        lfo_type=(int) value;
+        break;
+    case PARAM_LFO_FREQUENCY:
+        lfo_frequency=value;
         break;
     case PARAM_UNISON_VOICES:
         unison_voices=(int) value;
