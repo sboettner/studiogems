@@ -80,7 +80,6 @@ public:
     };
 
     struct ExcitationParameters {
-        float   burst=1.0f;
         float   attack=1.0f;
         float   sustain=1.0f;
         float   decay=1.0f;
