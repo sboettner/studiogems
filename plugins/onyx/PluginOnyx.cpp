@@ -283,7 +283,11 @@ public:
         float   oscexc[4];
     };
 
-    OscillatorExcitation(const Excitation& excitation, const DistrhoPluginOnyx::OscillatorParameters* params):excitation(excitation), params(params)
+    OscillatorExcitation(const Excitation& excitation, const OscillatorParameters* params, const LFOParameters& lfoparams, float samplerate):
+        excitation(excitation),
+        params(params),
+        lfoparams(lfoparams),
+        samplerate(samplerate)
     {
         for (int i=0;i<bufsize;i++)
             for (int j=0;j<4;j++)
@@ -299,7 +303,23 @@ public:
     {
         while (fillptr<excitation.get_position()) {
             float exc=excitation[fillptr];
-            float lfo=sinf(fillptr*0.01f);
+            float lfotime=(fillptr+0.5f)*lfoparams.frequency/samplerate;
+            float lfo=0.0f;
+
+            switch (lfoparams.type) {
+            case LFO_TYPE_SINE:
+                lfo=sin(2*M_PI*lfotime);
+                break;
+            case LFO_TYPE_FALLING:
+                lfo=-lfotime;
+                break;
+            case LFO_TYPE_RISING:
+                lfo=-1/lfotime;
+                break;
+            case LFO_TYPE_ONESHOT:
+                lfo=2.0f - lfotime - 1/lfotime;
+                break;
+            }
 
             for (int i=0;i<4;i++)
                 buffer[fillptr&bufmask].oscexc[i]=exc>0 ? expf(logf(exc)*params[i].excitation + lfo*params[i].lfo)*params[i].amplitude : 0.0f;
@@ -312,8 +332,11 @@ private:
     const static int bufsize=256;
     const static int bufmask=bufsize-1;
 
+    float   samplerate;
+
     const Excitation&     excitation;
     const OscillatorParameters*  params;
+    const LFOParameters&    lfoparams;
 
     Values  buffer[bufsize];
     uint    fillptr=0;
@@ -333,7 +356,7 @@ public:
         oscb(waveb, plugin.oscparams[1].frequency * expf((note-69+detune)*M_LN2/12.0f) * 440.0f / samplerate),
         oscc(wavec, plugin.oscparams[2].frequency * expf((note-69+detune)*M_LN2/12.0f) * 440.0f / samplerate),
         excitation(plugin.excparams, samplerate/32),
-        oscexc(excitation, plugin.oscparams),
+        oscexc(excitation, plugin.oscparams, plugin.lfoparams, samplerate/32),
         dcblock(SVF::biquad(1.0f, -2.0f, 1.0f, -2.0f*0.999f, 0.999f*0.999f))
     {
     }
@@ -755,9 +778,9 @@ float DistrhoPluginOnyx::getParameterValue(uint32_t index) const
     case PARAM_EXCITATION_RELEASE:
         return excparams.release;
     case PARAM_LFO_TYPE:
-        return lfo_type;
+        return lfoparams.type;
     case PARAM_LFO_FREQUENCY:
-        return lfo_frequency;
+        return lfoparams.frequency;
     case PARAM_UNISON_VOICES:
         return unison_voices;
     case PARAM_UNISON_DETUNE:
@@ -840,10 +863,10 @@ void DistrhoPluginOnyx::setParameterValue(uint32_t index, float value)
         excparams.release=value;
         break;
     case PARAM_LFO_TYPE:
-        lfo_type=(int) value;
+        lfoparams.type=(lfo_type_t) value;
         break;
     case PARAM_LFO_FREQUENCY:
-        lfo_frequency=value;
+        lfoparams.frequency=value;
         break;
     case PARAM_UNISON_VOICES:
         unison_voices=(int) value;

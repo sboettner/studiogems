@@ -95,6 +95,11 @@ public:
         float   release=1.0f;
     };
 
+    struct LFOParameters {
+        lfo_type_t  type=LFO_TYPE_SINE;
+        float       frequency=1.0f;
+    };
+
     DistrhoPluginOnyx();
     ~DistrhoPluginOnyx() override;
 
@@ -166,9 +171,7 @@ private:
 
     OscillatorParameters    oscparams[4];
     ExcitationParameters    excparams;
-
-    int                     lfo_type=0;
-    float                   lfo_frequency=1.0f;
+    LFOParameters           lfoparams;
 
     int                     unison_voices=1;
     float                   unison_detune=10.0f;
