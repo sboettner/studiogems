@@ -49,7 +49,10 @@ protected:
     void onCairoDisplay(const CairoGraphicsContext&) override;
 
 private:
+    class SpectrumPanel;
+
     ScopedPointer<TextLabel>        title;
+    ScopedPointer<SpectrumPanel>    spectrumpanel;
 
     DISTRHO_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(DistrhoUISapphire)
 };

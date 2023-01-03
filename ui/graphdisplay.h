@@ -35,7 +35,7 @@ protected:
 
     void onCairoDisplay(const CairoGraphicsContext&) override;
 
-    void plot(cairo_t* cr, float x0, float x1, float y0, float y1, std::function<std::pair<float, float>(float)> fn);
+    void plot(cairo_t* cr, float x0, float x1, float y0, float y1, std::function<std::pair<float, float>(float)> fn, int nsamples=16);
 
 private:
     cairo_surface_t*    inset;

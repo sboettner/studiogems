@@ -104,21 +104,21 @@ void GraphDisplay::onCairoDisplay(const CairoGraphicsContext& ctx)
 }
 
 
-void GraphDisplay::plot(cairo_t* cr, float x0, float x1, float y0, float y1, std::function<std::pair<float, float>(float)> fn)
+void GraphDisplay::plot(cairo_t* cr, float x0, float x1, float y0, float y1, std::function<std::pair<float, float>(float)> fn, int nsamples)
 {
     float xs=x0;
     auto [ys, ds]=fn(xs);
 
     cairo_move_to(cr, 0.0f, (ys-y1)/(y0-y1)*getHeight());
 
-    for (int i=1;i<=16;i++) {
-        float t=i/16.0f;
+    for (int i=1;i<=nsamples;i++) {
+        float t=(float) i/nsamples;
         float xt=x0*(1.0f-t) + x1*t;
         auto [yt, dt]=fn(xt);
 
         cairo_curve_to(cr, 
-            (t-0.666667f/16)*getWidth(), (ys+ds*(x1-x0)/48-y1)/(y0-y1)*getHeight(),
-            (t-0.333333f/16)*getWidth(), (yt-dt*(x1-x0)/48-y1)/(y0-y1)*getHeight(),
+            (t-0.666667f/nsamples)*getWidth(), (ys+ds*(x1-x0)/nsamples/3-y1)/(y0-y1)*getHeight(),
+            (t-0.333333f/nsamples)*getWidth(), (yt-dt*(x1-x0)/nsamples/3-y1)/(y0-y1)*getHeight(),
             t*getWidth(), (yt-y1)/(y0-y1)*getHeight());
 
         xs=xt;

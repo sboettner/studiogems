@@ -28,6 +28,13 @@ class DistrhoPluginSapphire : public Plugin
 {
 public:
     enum parameter_t {
+        PARAM_BRIGHTNESS,
+        PARAM_FALLOFF,
+        PARAM_TWO_FACTOR,
+        PARAM_THREE_FACTOR,
+        PARAM_FIVE_FACTOR,
+        PARAM_SEVEN_FACTOR,
+        PARAM_HIGHER_FACTOR,
         NUM_PARAMETERS
     };
 

@@ -41,6 +41,64 @@ void DistrhoPluginSapphire::initAudioPort(bool input, uint32_t index, AudioPort&
 
 void DistrhoPluginSapphire::initParameter(uint32_t index, Parameter& parameter)
 {
+    switch (index) {
+    case PARAM_BRIGHTNESS:
+        parameter.hints      = 0;
+        parameter.name       = "Brightness";
+        parameter.symbol     = "brightness";
+        parameter.ranges.def = 0.0f;
+        parameter.ranges.min = -0.25f;
+        parameter.ranges.max = 4.0f;
+        break;        
+    case PARAM_FALLOFF:
+        parameter.hints      = 0;
+        parameter.name       = "Fall-off";
+        parameter.symbol     = "falloff";
+        parameter.ranges.def = 1.0;
+        parameter.ranges.min = 0.5f;
+        parameter.ranges.max = 4.0f;
+        break;        
+    case PARAM_TWO_FACTOR:
+        parameter.hints      = 0;
+        parameter.name       = "Two";
+        parameter.symbol     = "two";
+        parameter.ranges.def = 1.0f;
+        parameter.ranges.min = 0.0f;
+        parameter.ranges.max = 1.0f;
+        break;
+    case PARAM_THREE_FACTOR:
+        parameter.hints      = 0;
+        parameter.name       = "Three";
+        parameter.symbol     = "three";
+        parameter.ranges.def = 1.0f;
+        parameter.ranges.min = 0.0f;
+        parameter.ranges.max = 1.0f;
+        break;
+    case PARAM_FIVE_FACTOR:
+        parameter.hints      = 0;
+        parameter.name       = "Five";
+        parameter.symbol     = "five";
+        parameter.ranges.def = 1.0f;
+        parameter.ranges.min = 0.0f;
+        parameter.ranges.max = 1.0f;
+        break;
+    case PARAM_SEVEN_FACTOR:
+        parameter.hints      = 0;
+        parameter.name       = "Seven";
+        parameter.symbol     = "seven";
+        parameter.ranges.def = 1.0f;
+        parameter.ranges.min = 0.0f;
+        parameter.ranges.max = 1.0f;
+        break;
+    case PARAM_HIGHER_FACTOR:
+        parameter.hints      = 0;
+        parameter.name       = "Higher";
+        parameter.symbol     = "higher";
+        parameter.ranges.def = 1.0f;
+        parameter.ranges.min = 0.0f;
+        parameter.ranges.max = 1.0f;
+        break;
+    }
 }
 
 
