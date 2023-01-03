@@ -31,6 +31,9 @@ DistrhoUISapphire::DistrhoUISapphire()
     TextLayout::register_font_file("/home/stb/fonts/orbitron-master/Orbitron Medium.otf");
     TextLayout::register_font_file("/home/stb/fonts/orbitron-master/Orbitron Light.otf");
 
+    title=new TextLabel(this, 12, 12, 384, 32, 8);
+    title->set_color(Color(0.6f, 0.8f, 1.0f));
+    title->set_text("Sapphire Pad Synth");
 }
 
 

@@ -20,6 +20,7 @@
 
 #include "DistrhoUI.hpp"
 #include <knob.h>
+#include <textlabel.h>
 
 
 START_NAMESPACE_DISTRHO
@@ -48,6 +49,7 @@ protected:
     void onCairoDisplay(const CairoGraphicsContext&) override;
 
 private:
+    ScopedPointer<TextLabel>        title;
 
     DISTRHO_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(DistrhoUISapphire)
 };
