@@ -102,6 +102,30 @@ protected:
     // -------------------------------------------------------------------
 
 private:
+    void invalidate_waveform();
+
+    struct Waveform {
+        double* sample;
+        int     length;
+
+        Waveform(int length);
+        ~Waveform();
+    };
+
+    int         curnote=-1;
+
+    double      step=0.0;
+    double      phase=0.0;
+
+    float       brightness=0.0f;
+    float       falloff=1.0f;
+    float       two_factor=1.0f;
+    float       three_factor=1.0f;
+    float       five_factor=1.0f;
+    float       seven_factor=1.0f;
+    float       higher_factor=1.0f;
+
+    Waveform*   waveform=nullptr;
 
     DISTRHO_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(DistrhoPluginSapphire)
 };

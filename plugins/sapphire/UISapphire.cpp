@@ -252,6 +252,36 @@ DistrhoUISapphire::SpectrumPanel::SpectrumPanel(DistrhoUISapphire* mainwnd, int 
 
 void DistrhoUISapphire::SpectrumPanel::parameterChanged(uint32_t index, float value)
 {
+    switch (index) {
+    case DistrhoPluginSapphire::PARAM_BRIGHTNESS:
+        spectrumview->set_brightness(value);
+        knob_brightness->setValue(value, false);
+        break;
+    case DistrhoPluginSapphire::PARAM_FALLOFF:
+        spectrumview->set_falloff(value);
+        knob_falloff->setValue(value, false);
+        break;
+    case DistrhoPluginSapphire::PARAM_TWO_FACTOR:
+        spectrumview->set_two_factor(value);
+        knob_two_factor->setValue(value, false);
+        break;
+    case DistrhoPluginSapphire::PARAM_THREE_FACTOR:
+        spectrumview->set_three_factor(value);
+        knob_three_factor->setValue(value, false);
+        break;
+    case DistrhoPluginSapphire::PARAM_FIVE_FACTOR:
+        spectrumview->set_five_factor(value);
+        knob_five_factor->setValue(value, false);
+        break;
+    case DistrhoPluginSapphire::PARAM_SEVEN_FACTOR:
+        spectrumview->set_seven_factor(value);
+        knob_seven_factor->setValue(value, false);
+        break;
+    case DistrhoPluginSapphire::PARAM_HIGHER_FACTOR:
+        spectrumview->set_higher_factor(value);
+        knob_higher_factor->setValue(value, false);
+        break;
+    }
 }
 
 
@@ -271,26 +301,7 @@ void DistrhoUISapphire::SpectrumPanel::knobValueChanged(SubWidget* widget, float
 {
     mainwnd->setParameterValue(widget->getId(), value);
 
-    if (widget->getId()==DistrhoPluginSapphire::PARAM_BRIGHTNESS)
-        spectrumview->set_brightness(value);
-
-    if (widget->getId()==DistrhoPluginSapphire::PARAM_FALLOFF)
-        spectrumview->set_falloff(value);
-
-    if (widget->getId()==DistrhoPluginSapphire::PARAM_TWO_FACTOR)
-        spectrumview->set_two_factor(value);
-
-    if (widget->getId()==DistrhoPluginSapphire::PARAM_THREE_FACTOR)
-        spectrumview->set_three_factor(value);
-
-    if (widget->getId()==DistrhoPluginSapphire::PARAM_FIVE_FACTOR)
-        spectrumview->set_five_factor(value);
-
-    if (widget->getId()==DistrhoPluginSapphire::PARAM_SEVEN_FACTOR)
-        spectrumview->set_seven_factor(value);
-
-    if (widget->getId()==DistrhoPluginSapphire::PARAM_HIGHER_FACTOR)
-        spectrumview->set_higher_factor(value);
+    parameterChanged(widget->getId(), value);
 }
 
 
@@ -318,6 +329,7 @@ DistrhoUISapphire::~DistrhoUISapphire()
 
 void DistrhoUISapphire::parameterChanged(uint32_t index, float value)
 {
+    spectrumpanel->parameterChanged(index, value);
 }
 
 

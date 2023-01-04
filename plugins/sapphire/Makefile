@@ -37,6 +37,9 @@ LINK_FLAGS += `pkg-config --libs pangocairo`
 
 LINK_FLAGS += `pkg-config --libs fontconfig`
 
+BUILD_CXX_FLAGS += `pkg-config --cflags fftw3`
+LINK_FLAGS += `pkg-config --libs fftw3`
+
 # --------------------------------------------------------------
 # Enable all possible plugin types
 
