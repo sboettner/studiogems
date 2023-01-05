@@ -21,7 +21,7 @@
 START_NAMESPACE_DISTRHO
 
 
-DistrhoPluginSapphire::Waveform::Waveform(int length):length(length)
+DistrhoPluginSapphire::Waveform::Waveform(int length, int period):length(length), period(period)
 {
     sample=new double[length];
 }
@@ -111,6 +111,22 @@ void DistrhoPluginSapphire::initParameter(uint32_t index, Parameter& parameter)
         parameter.ranges.min = 0.0f;
         parameter.ranges.max = 1.0f;
         break;
+    case PARAM_BANDWIDTH:
+        parameter.hints      = 0;
+        parameter.name       = "Bandwidth";
+        parameter.symbol     = "bw";
+        parameter.ranges.def = 0.1f;
+        parameter.ranges.min = 0.0f;
+        parameter.ranges.max = 100.0f;
+        break;
+    case PARAM_BANDWIDTH_EXPONENT:
+        parameter.hints      = 0;
+        parameter.name       = "Bandwidth Exponent";
+        parameter.symbol     = "bwexp";
+        parameter.ranges.def = 1.0f;
+        parameter.ranges.min = 0.0f;
+        parameter.ranges.max = 1.0f;
+        break;
     }
 }
 
@@ -132,6 +148,10 @@ float DistrhoPluginSapphire::getParameterValue(uint32_t index) const
         return seven_factor;
     case PARAM_HIGHER_FACTOR:
         return higher_factor;
+    case PARAM_BANDWIDTH:
+        return bandwidth;
+    case PARAM_BANDWIDTH_EXPONENT:
+        return bandwidth_exponent;
     default:
         return 0.0;
     }
@@ -169,6 +189,14 @@ void DistrhoPluginSapphire::setParameterValue(uint32_t index, float value)
         higher_factor=value;
         invalidate_waveform();
         break;
+    case PARAM_BANDWIDTH:
+        bandwidth=value;
+        invalidate_waveform();
+        break;
+    case PARAM_BANDWIDTH_EXPONENT:
+        bandwidth_exponent=value;
+        invalidate_waveform();
+        break;
     }
 }
 
@@ -194,12 +222,12 @@ static double beta(double a, double b)
 
 void DistrhoPluginSapphire::invalidate_waveform()
 {
-    Waveform* newwaveform=new Waveform(256);
+    Waveform* newwaveform=new Waveform(65536, 256);
 
     for (int i=0;i<newwaveform->length;i++)
         newwaveform->sample[i]=0.0;
 
-    double scale=1 / sqrt(beta(2*brightness+1, 2*falloff) * newwaveform->length);
+    double scale=0.25 / sqrt(beta(2*brightness+1, 2*falloff-1));
     
     for (int i=1;i<=64;i++) {
         double x=i-0.5;
@@ -233,7 +261,15 @@ void DistrhoPluginSapphire::invalidate_waveform()
                 y*=higher_factor;
             }
 
-        newwaveform->sample[newwaveform->length-i]=y;
+        float bw=256.0f * powf((float) i, bandwidth_exponent) * expm1f(M_LN2*bandwidth/1200);
+
+        for (int j=-127;j<=127;j++) {
+            float amp=y * (erff((j+0.5f)/bw) - erff((j-0.5f)/bw)) / 2;
+            float phase=2*M_PI*ldexpf(rand()&0xfffff, -20);
+
+            newwaveform->sample[                    i*256+j]=amp * cosf(phase);
+            newwaveform->sample[newwaveform->length-i*256-j]=amp * sinf(phase);
+        }
     }
 
     fftw_plan ifft=fftw_plan_r2r_1d(newwaveform->length, newwaveform->sample, newwaveform->sample, FFTW_HC2R, FFTW_ESTIMATE);
@@ -255,7 +291,7 @@ void DistrhoPluginSapphire::run(const float**, float** outputs, uint32_t frames,
             curnote=ev.data[1];
 
             phase=0.0;
-            step=440.0 * exp((curnote-69)*M_LN2/12) / getSampleRate();
+            step=440.0 * exp((curnote-69)*M_LN2/12) / 256 / getSampleRate();
         }
 
         if ((ev.data[0]&0xf0)==0x80 && ev.data[1]==curnote) {

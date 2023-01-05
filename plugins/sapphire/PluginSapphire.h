@@ -35,6 +35,8 @@ public:
         PARAM_FIVE_FACTOR,
         PARAM_SEVEN_FACTOR,
         PARAM_HIGHER_FACTOR,
+        PARAM_BANDWIDTH,
+        PARAM_BANDWIDTH_EXPONENT,
         NUM_PARAMETERS
     };
 
@@ -107,8 +109,9 @@ private:
     struct Waveform {
         double* sample;
         int     length;
+        int     period;     // length of one quasi-period in number of samples
 
-        Waveform(int length);
+        Waveform(int length, int period);
         ~Waveform();
     };
 
@@ -119,11 +122,15 @@ private:
 
     float       brightness=0.0f;
     float       falloff=1.0f;
+
     float       two_factor=1.0f;
     float       three_factor=1.0f;
     float       five_factor=1.0f;
     float       seven_factor=1.0f;
     float       higher_factor=1.0f;
+
+    float       bandwidth=10.0f;            // bandwidth in cents for the fundamental
+    float       bandwidth_exponent=1.0f;
 
     Waveform*   waveform=nullptr;
 

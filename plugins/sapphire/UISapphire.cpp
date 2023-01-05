@@ -43,13 +43,18 @@ private:
 
     ScopedPointer<TextLabel>        header;
     ScopedPointer<SpectrumView>     spectrumview;
+
     ScopedPointer<Knob>             knob_brightness;
     ScopedPointer<Knob>             knob_falloff;
+    
     ScopedPointer<Knob>             knob_two_factor;
     ScopedPointer<Knob>             knob_three_factor;
     ScopedPointer<Knob>             knob_five_factor;
     ScopedPointer<Knob>             knob_seven_factor;
     ScopedPointer<Knob>             knob_higher_factor;
+
+    ScopedPointer<Knob>             knob_bandwidth;
+    ScopedPointer<Knob>             knob_bandwidth_exponent;
 };
 
 
@@ -71,6 +76,7 @@ protected:
 private:
     float   brightness=0.0f;
     float   falloff=1.0f;
+    
     float   two_factor=1.0f;
     float   three_factor=1.0f;
     float   five_factor=1.0f;
@@ -145,7 +151,7 @@ void DistrhoUISapphire::SpectrumPanel::SpectrumView::SpectrumView::draw_graph(ca
     cairo_set_line_width(cr, 3.0);
     cairo_set_line_cap(cr, CAIRO_LINE_CAP_ROUND);
 
-    float scale=1/sqrtf(beta(brightness*2+1, 2*falloff));
+    float scale=1/sqrtf(beta(brightness*2+1, 2*falloff-1));
 
     cairo_set_source_rgb(cr, 1.0, 1.0, 0.2);
     for (int i=0;i<64;i++) {
@@ -247,6 +253,18 @@ DistrhoUISapphire::SpectrumPanel::SpectrumPanel(DistrhoUISapphire* mainwnd, int 
     knob_higher_factor->setRange(0.0f, 1.0f);
     knob_higher_factor->setId(DistrhoPluginSapphire::PARAM_HIGHER_FACTOR);
     knob_higher_factor->setCallback(this);
+
+    knob_bandwidth=new Knob(this, Knob::Size::MEDIUM, x0+1040, y0+336, 128, 160);
+    knob_bandwidth->set_name("Bandwidth");
+    knob_bandwidth->setRange(0.1f, 100.0f);
+    knob_bandwidth->setId(DistrhoPluginSapphire::PARAM_BANDWIDTH);
+    knob_bandwidth->setCallback(this);
+
+    knob_bandwidth_exponent=new Knob(this, Knob::Size::MEDIUM, x0+1168, y0+336, 128, 160);
+    knob_bandwidth_exponent->set_name("Scaling");
+    knob_bandwidth_exponent->setRange(0.0f, 1.0f);
+    knob_bandwidth_exponent->setId(DistrhoPluginSapphire::PARAM_BANDWIDTH_EXPONENT);
+    knob_bandwidth_exponent->setCallback(this);
 }
 
 
@@ -280,6 +298,12 @@ void DistrhoUISapphire::SpectrumPanel::parameterChanged(uint32_t index, float va
     case DistrhoPluginSapphire::PARAM_HIGHER_FACTOR:
         spectrumview->set_higher_factor(value);
         knob_higher_factor->setValue(value, false);
+        break;
+    case DistrhoPluginSapphire::PARAM_BANDWIDTH:
+        knob_bandwidth->setValue(value, false);
+        break;
+    case DistrhoPluginSapphire::PARAM_BANDWIDTH_EXPONENT:
+        knob_bandwidth_exponent->setValue(value, false);
         break;
     }
 }
