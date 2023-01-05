@@ -18,6 +18,8 @@
 #ifndef DISTRHO_PLUGIN_SAPPHIRE_H_INCLUDED
 #define DISTRHO_PLUGIN_SAPPHIRE_H_INCLUDED
 
+#include <vector>
+#include <memory>
 #include "DistrhoPlugin.hpp"
 
 START_NAMESPACE_DISTRHO
@@ -115,7 +117,7 @@ private:
         ~Waveform();
     };
 
-    int         curnote=-1;
+    struct Voice;
 
     double      step=0.0;
     double      phase=0.0;
@@ -133,6 +135,8 @@ private:
     float       bandwidth_exponent=1.0f;
 
     Waveform*   waveform=nullptr;
+
+    std::vector<std::unique_ptr<Voice>> voices;
 
     DISTRHO_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(DistrhoPluginSapphire)
 };
