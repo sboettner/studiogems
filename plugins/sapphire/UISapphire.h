@@ -50,9 +50,11 @@ protected:
 
 private:
     class SpectrumPanel;
+    class ExcitationPanel;
 
     ScopedPointer<TextLabel>        title;
     ScopedPointer<SpectrumPanel>    spectrumpanel;
+    ScopedPointer<ExcitationPanel>  excitationpanel;
 
     DISTRHO_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(DistrhoUISapphire)
 };

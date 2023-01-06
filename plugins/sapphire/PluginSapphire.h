@@ -26,6 +26,14 @@ START_NAMESPACE_DISTRHO
 
 // -----------------------------------------------------------------------
 
+struct ExcitationParameters {
+    float   attack=1.0f;
+    float   decay=100.0f;
+    float   sustain=1.0f;
+    float   release=10.0f;
+};
+
+
 class DistrhoPluginSapphire : public Plugin
 {
 public:
@@ -39,6 +47,10 @@ public:
         PARAM_HIGHER_FACTOR,
         PARAM_BANDWIDTH,
         PARAM_BANDWIDTH_EXPONENT,
+        PARAM_EXCITATION_ATTACK,
+        PARAM_EXCITATION_DECAY,
+        PARAM_EXCITATION_SUSTAIN,
+        PARAM_EXCITATION_RELEASE,
         NUM_PARAMETERS
     };
 
@@ -133,6 +145,8 @@ private:
 
     float       bandwidth=10.0f;            // bandwidth in cents for the fundamental
     float       bandwidth_exponent=1.0f;
+
+    ExcitationParameters    excitation;
 
     Waveform*   waveform=nullptr;
 

@@ -329,9 +329,102 @@ void DistrhoUISapphire::SpectrumPanel::knobValueChanged(SubWidget* widget, float
 }
 
 
+class DistrhoUISapphire::ExcitationPanel:public RaisedPanel, KnobEventHandler::Callback {
+public:
+    ExcitationPanel(DistrhoUISapphire*, int x0, int y0);
+
+    void parameterChanged(uint32_t index, float value);
+
+protected:
+    void knobDragStarted(SubWidget* widget) override;
+    void knobDragFinished(SubWidget* widget) override;
+    void knobValueChanged(SubWidget* widget, float value) override;
+
+private:
+    DistrhoUISapphire*              mainwnd;
+
+    ScopedPointer<TextLabel>        header;
+    ScopedPointer<Knob>             knob_attack;
+    ScopedPointer<Knob>             knob_sustain;
+    ScopedPointer<Knob>             knob_decay;
+    ScopedPointer<Knob>             knob_release;
+};
+
+
+DistrhoUISapphire::ExcitationPanel::ExcitationPanel(DistrhoUISapphire* mainwnd, int x0, int y0):
+    RaisedPanel(mainwnd, x0, y0, 416, 176),
+    mainwnd(mainwnd)
+{
+    header=new TextLabel(this, x0+12, y0+12, 480, 32, 8);
+    header->set_color(Color(0.6f, 0.8f, 1.0f));
+    header->set_text("Envelope");
+
+    knob_attack=new Knob(this, Knob::Size::SMALL, x0+16, y0+48, 96, 120);
+    knob_attack->set_name("Attack");
+    knob_attack->setRange(0.1f, 1000.0f);
+    knob_attack->setId(DistrhoPluginSapphire::PARAM_EXCITATION_ATTACK);
+    knob_attack->setCallback(this);
+
+    knob_sustain=new Knob(this, Knob::Size::SMALL, x0+112, y0+48, 96, 120);
+    knob_sustain->set_name("Sustain");
+    knob_sustain->setRange(0.0f, 1.0f);
+    knob_sustain->setId(DistrhoPluginSapphire::PARAM_EXCITATION_SUSTAIN);
+    knob_sustain->setCallback(this);
+
+    knob_decay=new Knob(this, Knob::Size::SMALL, x0+208, y0+48, 96, 120);
+    knob_decay->set_name("Decay");
+    knob_decay->setRange(0.1f, 1000.0f);
+    knob_decay->setId(DistrhoPluginSapphire::PARAM_EXCITATION_DECAY);
+    knob_decay->setCallback(this);
+
+    knob_release=new Knob(this, Knob::Size::SMALL, x0+304, y0+48, 96, 120);
+    knob_release->set_name("Release");
+    knob_release->setRange(0.1f, 1000.0f);
+    knob_release->setId(DistrhoPluginSapphire::PARAM_EXCITATION_RELEASE);
+    knob_release->setCallback(this);
+}
+
+
+void DistrhoUISapphire::ExcitationPanel::parameterChanged(uint32_t index, float value)
+{
+    switch (index) {
+    case DistrhoPluginSapphire::PARAM_EXCITATION_ATTACK:
+        knob_attack->setValue(value);
+        break;
+    case DistrhoPluginSapphire::PARAM_EXCITATION_SUSTAIN:
+        knob_sustain->setValue(value);
+        break;
+    case DistrhoPluginSapphire::PARAM_EXCITATION_DECAY:
+        knob_decay->setValue(value);
+        break;
+    case DistrhoPluginSapphire::PARAM_EXCITATION_RELEASE:
+        knob_release->setValue(value);
+        break;
+    }
+}
+
+
+void DistrhoUISapphire::ExcitationPanel::knobDragStarted(SubWidget* widget)
+{
+    mainwnd->editParameter(widget->getId(), true);
+}
+
+
+void DistrhoUISapphire::ExcitationPanel::knobDragFinished(SubWidget* widget)
+{
+    mainwnd->editParameter(widget->getId(), false);
+}
+
+
+void DistrhoUISapphire::ExcitationPanel::knobValueChanged(SubWidget* widget, float value)
+{
+    mainwnd->setParameterValue(widget->getId(), value);
+}
+
+
 DistrhoUISapphire::DistrhoUISapphire()
 {
-    setSize(1632, 768);
+    setSize(1632, 784);
 
     TextLayout::register_font_file("/home/stb/fonts/orbitron-master/Orbitron Black.otf");
     TextLayout::register_font_file("/home/stb/fonts/orbitron-master/Orbitron Bold.otf");
@@ -343,6 +436,7 @@ DistrhoUISapphire::DistrhoUISapphire()
     title->set_text("Sapphire Pad Synth");
 
     spectrumpanel=new SpectrumPanel(this, 16, 64);
+    excitationpanel=new ExcitationPanel(this, 16, 592);
 }
 
 
@@ -354,6 +448,7 @@ DistrhoUISapphire::~DistrhoUISapphire()
 void DistrhoUISapphire::parameterChanged(uint32_t index, float value)
 {
     spectrumpanel->parameterChanged(index, value);
+    excitationpanel->parameterChanged(index, value);
 }
 
 

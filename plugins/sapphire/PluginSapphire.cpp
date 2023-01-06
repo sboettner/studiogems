@@ -33,6 +33,109 @@ DistrhoPluginSapphire::Waveform::~Waveform()
 }
 
 
+class Excitation {
+public:
+    Excitation(const ExcitationParameters&, float velocity, float delay, float samplerate);
+
+    void note_off(float delay);
+
+    void produce(float* out, int count);
+
+    bool terminated() const
+    {
+        return !alive && energy<1e-6f;
+    }
+
+private:
+    float   energy=0.0f;
+    float   sustain_energy=0.0f;
+    float   latent_energy=0.0f;
+
+    float   attack_rate=0.0f;
+    float   decay_rate=0.0f;
+    float   sustain_rate=0.0f;
+    float   release_rate=0.0f;
+
+    bool    alive=true;
+};
+
+
+Excitation::Excitation(const ExcitationParameters& params, float velocity, float delay, float samplerate)
+{
+    latent_energy=1.0f;
+
+    attack_rate=-expm1f(-1000.0f/(params.attack*samplerate));
+    decay_rate=-expm1f(-1000.0f/(params.decay*samplerate));
+    sustain_rate=decay_rate*params.sustain;
+    release_rate=-expm1f(-1000.0f/(params.release*samplerate));
+}
+
+
+void Excitation::note_off(float delay)
+{
+    // FIXME: properly implement delay
+
+    alive=false;
+    latent_energy=0.0f;
+    sustain_energy=0.0f;
+}
+
+
+void Excitation::produce(float* out, int count)
+{
+    // FIXME: properly implement delay
+
+    for (int i=0;i<count;i++) {
+        if (alive)
+            energy*=1.0f - decay_rate;
+        else
+            energy*=1.0f - release_rate;
+
+        float u=latent_energy*attack_rate;
+        latent_energy-=u;
+        energy+=u;
+        sustain_energy+=u;
+
+        energy+=sustain_energy*sustain_rate;
+
+        out[i]=energy;
+    }    
+}
+
+
+class ExcitationUpsampler {
+    const int   factor;
+
+public:
+    explicit ExcitationUpsampler(int factor);
+
+    void upsample(float* out, const float* in, int count);
+};
+
+
+ExcitationUpsampler::ExcitationUpsampler(int factor):factor(factor)
+{
+}
+
+
+void ExcitationUpsampler::upsample(float* out, const float* in, int count)
+{
+    // FIXME: use a better upsampling filter - this is naive sample and hold
+
+    float v=*in++;
+    int avail=factor;
+    
+    for (int i=0;i<count;i++) {
+        if (!--avail) {
+            v=*in++;
+            avail=factor;
+        }
+
+        out[i]=v;
+    }
+}
+
+
 struct DistrhoPluginSapphire::Voice {
     int     note;
 
@@ -40,10 +143,13 @@ struct DistrhoPluginSapphire::Voice {
     double  phase0;
     double  phase1;
 
-    double  energy=0.0;
-    double  excitation=1.0;
+    Excitation          excitation;
+    ExcitationUpsampler excitation_upsampler;
 
-    Voice(int note, double samplerate):note(note)
+    Voice(const DistrhoPluginSapphire& plugin, int note, float velocity, float delay, double samplerate):
+        note(note),
+        excitation(plugin.excitation, velocity, delay/16, (float) samplerate/16),
+        excitation_upsampler(16)
     {
         phase0=ldexpf(rand()&0xfffff, -20);
         phase1=ldexpf(rand()&0xfffff, -20);
@@ -52,19 +158,27 @@ struct DistrhoPluginSapphire::Voice {
 
     void note_off()
     {
-        excitation=0.0;
+        excitation.note_off(0.0f);
     }
 
     bool terminated() const
     {
-        return energy<0.00001 && excitation<0.00001;
+        return excitation.terminated();
     }
 
-    void produce(Waveform* waveform, float& out0, float& out1)
-    {
-        energy*=0.9999;
-        energy+=excitation * 0.0001;
+    void produce(Waveform* waveform, float* out0, float* out1, int count);
+};
 
+
+void DistrhoPluginSapphire::Voice::produce(Waveform* waveform, float* out0, float* out1, int count)
+{
+    float* excbuf=(float*) alloca(count*sizeof(float)/16);
+    float* excbuf_upsampled=(float*) alloca(count*sizeof(float));
+
+    excitation.produce(excbuf, count/16);
+    excitation_upsampler.upsample(excbuf_upsampled, excbuf, count);
+
+    for (int i=0;i<count;i++) {
         double s=phase0*waveform->length;
         double t=phase1*waveform->length;
 
@@ -73,8 +187,8 @@ struct DistrhoPluginSapphire::Voice {
         s-=s0;
         t-=t0;
 
-        out0+=(waveform->sample[s0]*(1.0-s) + waveform->sample[(s0+1)&(waveform->length-1)]*s) * energy;
-        out1+=(waveform->sample[t0]*(1.0-t) + waveform->sample[(t0+1)&(waveform->length-1)]*t) * energy;
+        out0[i]+=(waveform->sample[s0]*(1.0-s) + waveform->sample[(s0+1)&(waveform->length-1)]*s) * excbuf_upsampled[i];
+        out1[i]+=(waveform->sample[t0]*(1.0-t) + waveform->sample[(t0+1)&(waveform->length-1)]*t) * excbuf_upsampled[i];
 
         phase0+=step;
         if (phase0>=1)
@@ -84,7 +198,7 @@ struct DistrhoPluginSapphire::Voice {
         if (phase1>=1)
             phase1-=1;
     }
-};
+}
 
 
 DistrhoPluginSapphire::DistrhoPluginSapphire():Plugin(NUM_PARAMETERS, 0, 0)
@@ -181,6 +295,38 @@ void DistrhoPluginSapphire::initParameter(uint32_t index, Parameter& parameter)
         parameter.ranges.min = 0.0f;
         parameter.ranges.max = 1.0f;
         break;
+    case PARAM_EXCITATION_ATTACK:
+        parameter.hints      = kParameterIsLogarithmic;
+        parameter.name       = "Attack";
+        parameter.symbol     = "attack";
+        parameter.ranges.def = 1.0f;
+        parameter.ranges.min = 0.1f;
+        parameter.ranges.max = 1000.0f;
+        break;
+    case PARAM_EXCITATION_DECAY:
+        parameter.hints      = kParameterIsLogarithmic;
+        parameter.name       = "Decay";
+        parameter.symbol     = "decay";
+        parameter.ranges.def = 1.0f;
+        parameter.ranges.min = 0.1f;
+        parameter.ranges.max = 1000.0f;
+        break;
+    case PARAM_EXCITATION_SUSTAIN:
+        parameter.hints      = 0;
+        parameter.name       = "Sustain";
+        parameter.symbol     = "sustain";
+        parameter.ranges.def = 1.0f;
+        parameter.ranges.min = 0.0f;
+        parameter.ranges.max = 1.0f;
+        break;
+    case PARAM_EXCITATION_RELEASE:
+        parameter.hints      = kParameterIsLogarithmic;
+        parameter.name       = "Release";
+        parameter.symbol     = "release";
+        parameter.ranges.def = 1.0f;
+        parameter.ranges.min = 0.1f;
+        parameter.ranges.max = 1000.0f;
+        break;
     }
 }
 
@@ -206,6 +352,14 @@ float DistrhoPluginSapphire::getParameterValue(uint32_t index) const
         return bandwidth;
     case PARAM_BANDWIDTH_EXPONENT:
         return bandwidth_exponent;
+    case PARAM_EXCITATION_ATTACK:
+        return excitation.attack;
+    case PARAM_EXCITATION_DECAY:
+        return excitation.decay;
+    case PARAM_EXCITATION_SUSTAIN:
+        return excitation.sustain;
+    case PARAM_EXCITATION_RELEASE:
+        return excitation.release;
     default:
         return 0.0;
     }
@@ -250,6 +404,18 @@ void DistrhoPluginSapphire::setParameterValue(uint32_t index, float value)
     case PARAM_BANDWIDTH_EXPONENT:
         bandwidth_exponent=value;
         invalidate_waveform();
+        break;
+    case PARAM_EXCITATION_ATTACK:
+        excitation.attack=value;
+        break;
+    case PARAM_EXCITATION_DECAY:
+        excitation.decay=value;
+        break;
+    case PARAM_EXCITATION_SUSTAIN:
+        excitation.sustain=value;
+        break;
+    case PARAM_EXCITATION_RELEASE:
+        excitation.release=value;
         break;
     }
 }
@@ -342,7 +508,7 @@ void DistrhoPluginSapphire::run(const float**, float** outputs, uint32_t frames,
         const auto& ev=midievents[i];
 
         if ((ev.data[0]&0xf0)==0x90)
-            voices.emplace_back(new Voice(ev.data[1], getSampleRate()));
+            voices.emplace_back(new Voice(*this, ev.data[1], ev.data[2]/127.0f, ev.frame, getSampleRate()));
 
         if ((ev.data[0]&0xf0)==0x80)
             for (auto& v: voices)
@@ -353,12 +519,11 @@ void DistrhoPluginSapphire::run(const float**, float** outputs, uint32_t frames,
     for (uint32_t i=0;i<frames;i++) {
         outputs[0][i]=0.0f;
         outputs[1][i]=0.0f;
-
-        if (!waveform) continue;
-
-        for (auto& v: voices)
-            v->produce(waveform, outputs[0][i], outputs[1][i]);
     }
+
+    if (waveform)
+        for (auto& v: voices)
+            v->produce(waveform, outputs[0], outputs[1], frames);
 
     voices.erase(std::remove_if(voices.begin(), voices.end(), [](const std::unique_ptr<Voice>& voice) { return voice->terminated(); }), voices.end());
 }
