@@ -126,7 +126,7 @@ void ExcitationUpsampler::upsample(float* out, const float* in, int count)
     int avail=factor;
     
     for (int i=0;i<count;i++) {
-        if (!--avail) {
+        if (!avail--) {
             v=*in++;
             avail=factor;
         }
@@ -136,12 +136,47 @@ void ExcitationUpsampler::upsample(float* out, const float* in, int count)
 }
 
 
+class LowpassLadderFilter {
+    float   s1=0.0f, s2=0.0f, s3=0.0f, s4=0.0f;
+
+public:
+    float operator()(float x, float g, float feedback)
+    {
+        float G=g / (1.0f+g);
+        float S=(s4 + G*(s3 + G*(s2 + G*s1))) * (1.0f-G);
+        float y=(x - feedback*S) / (1.0f + feedback*G*G*G*G);
+
+        float v;
+
+        v=(y-s1) * G;
+        y=v+s1;
+        s1=y+v;
+
+        v=(y-s2) * G;
+        y=v+s2;
+        s2=y+v;
+
+        v=(y-s3) * G;
+        y=v+s3;
+        s3=y+v;
+
+        v=(y-s4) * G;
+        y=v+s4;
+        s4=y+v;
+
+        return y;
+    }
+};
+
+
 struct DistrhoPluginSapphire::Voice {
     int     note;
 
     double  step;
     double  phase0;
     double  phase1;
+
+    LowpassLadderFilter lp0, lp1;
 
     Excitation          excitation;
     ExcitationUpsampler excitation_upsampler;
@@ -187,8 +222,11 @@ void DistrhoPluginSapphire::Voice::produce(Waveform* waveform, float* out0, floa
         s-=s0;
         t-=t0;
 
-        out0[i]+=(waveform->sample[s0]*(1.0-s) + waveform->sample[(s0+1)&(waveform->length-1)]*s) * excbuf_upsampled[i];
-        out1[i]+=(waveform->sample[t0]*(1.0-t) + waveform->sample[(t0+1)&(waveform->length-1)]*t) * excbuf_upsampled[i];
+        const float g=tanf(M_PI*0.25f*excbuf_upsampled[i]);
+        const float feedback=1.0f;
+
+        out0[i]+=lp0((waveform->sample[s0]*(1.0-s) + waveform->sample[(s0+1)&(waveform->length-1)]*s) * excbuf_upsampled[i], g, feedback);
+        out1[i]+=lp1((waveform->sample[t0]*(1.0-t) + waveform->sample[(t0+1)&(waveform->length-1)]*t) * excbuf_upsampled[i], g, feedback);
 
         phase0+=step;
         if (phase0>=1)
