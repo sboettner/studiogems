@@ -170,6 +170,7 @@ public:
 
 
 struct DistrhoPluginSapphire::Voice {
+    const DistrhoPluginSapphire&    plugin;
     int     note;
 
     double  step;
@@ -182,6 +183,7 @@ struct DistrhoPluginSapphire::Voice {
     ExcitationUpsampler excitation_upsampler;
 
     Voice(const DistrhoPluginSapphire& plugin, int note, float velocity, float delay, double samplerate):
+        plugin(plugin),
         note(note),
         excitation(plugin.excitation, velocity, delay/16, (float) samplerate/16),
         excitation_upsampler(16)
@@ -222,11 +224,10 @@ void DistrhoPluginSapphire::Voice::produce(Waveform* waveform, float* out0, floa
         s-=s0;
         t-=t0;
 
-        const float g=tanf(M_PI*0.25f*excbuf_upsampled[i]);
-        const float feedback=1.0f;
+        const float g=tanf(M_PI*std::min(0.49f, plugin.filter.cutoff*powf(excbuf_upsampled[i], plugin.filter.envelope)/(float) plugin.getSampleRate()));
 
-        out0[i]+=lp0((waveform->sample[s0]*(1.0-s) + waveform->sample[(s0+1)&(waveform->length-1)]*s) * excbuf_upsampled[i], g, feedback);
-        out1[i]+=lp1((waveform->sample[t0]*(1.0-t) + waveform->sample[(t0+1)&(waveform->length-1)]*t) * excbuf_upsampled[i], g, feedback);
+        out0[i]+=lp0((waveform->sample[s0]*(1.0-s) + waveform->sample[(s0+1)&(waveform->length-1)]*s) * excbuf_upsampled[i], g, plugin.filter.feedback);
+        out1[i]+=lp1((waveform->sample[t0]*(1.0-t) + waveform->sample[(t0+1)&(waveform->length-1)]*t) * excbuf_upsampled[i], g, plugin.filter.feedback);
 
         phase0+=step;
         if (phase0>=1)
@@ -365,6 +366,46 @@ void DistrhoPluginSapphire::initParameter(uint32_t index, Parameter& parameter)
         parameter.ranges.min = 0.1f;
         parameter.ranges.max = 1000.0f;
         break;
+    case PARAM_FILTER_CUTOFF:
+        parameter.hints      = kParameterIsLogarithmic;
+        parameter.name       = "Filter Cut-off";
+        parameter.symbol     = "filtercutoff";
+        parameter.ranges.def = 24000.0f;
+        parameter.ranges.min = 10.0f;
+        parameter.ranges.max = 24000.0f;
+        break;
+    case PARAM_FILTER_ENVELOPE:
+        parameter.hints      = 0;
+        parameter.name       = "Filter Envelope";
+        parameter.symbol     = "filterenv";
+        parameter.ranges.def = 0.0f;
+        parameter.ranges.min = 0.0;
+        parameter.ranges.max = 2.0f;
+        break;
+    case PARAM_FILTER_LFO:
+        parameter.hints      = 0;
+        parameter.name       = "Filter LFO";
+        parameter.symbol     = "filterlfo";
+        parameter.ranges.def = 0.0f;
+        parameter.ranges.min = 0.0;
+        parameter.ranges.max = 2.0f;
+        break;
+    case PARAM_FILTER_MODULATION:
+        parameter.hints      = 0;
+        parameter.name       = "Filter Modulation";
+        parameter.symbol     = "filtermod";
+        parameter.ranges.def = 0.0f;
+        parameter.ranges.min = 0.0;
+        parameter.ranges.max = 2.0f;
+        break;
+    case PARAM_FILTER_FEEDBACK:
+        parameter.hints      = 0;
+        parameter.name       = "Filter Feedback";
+        parameter.symbol     = "filterfb";
+        parameter.ranges.def = 0.0f;
+        parameter.ranges.min = -1.0f;
+        parameter.ranges.max = 4.0f;
+        break;
     }
 }
 
@@ -398,6 +439,16 @@ float DistrhoPluginSapphire::getParameterValue(uint32_t index) const
         return excitation.sustain;
     case PARAM_EXCITATION_RELEASE:
         return excitation.release;
+    case PARAM_FILTER_CUTOFF:
+        return filter.cutoff;
+    case PARAM_FILTER_ENVELOPE:
+        return filter.envelope;
+    case PARAM_FILTER_LFO:
+        return filter.lfo;
+    case PARAM_FILTER_MODULATION:
+        return filter.modulation;
+    case PARAM_FILTER_FEEDBACK:
+        return filter.feedback;
     default:
         return 0.0;
     }
@@ -454,6 +505,21 @@ void DistrhoPluginSapphire::setParameterValue(uint32_t index, float value)
         break;
     case PARAM_EXCITATION_RELEASE:
         excitation.release=value;
+        break;
+    case PARAM_FILTER_CUTOFF:
+        filter.cutoff=value;
+        break;
+    case PARAM_FILTER_ENVELOPE:
+        filter.envelope=value;
+        break;
+    case PARAM_FILTER_LFO:
+        filter.lfo=value;
+        break;
+    case PARAM_FILTER_MODULATION:
+        filter.modulation=value;
+        break;
+    case PARAM_FILTER_FEEDBACK:
+        filter.feedback=value;
         break;
     }
 }

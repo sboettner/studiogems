@@ -422,6 +422,109 @@ void DistrhoUISapphire::ExcitationPanel::knobValueChanged(SubWidget* widget, flo
 }
 
 
+class DistrhoUISapphire::FilterPanel:public RaisedPanel, KnobEventHandler::Callback {
+public:
+    FilterPanel(DistrhoUISapphire*, int x0, int y0);
+
+    void parameterChanged(uint32_t index, float value);
+
+protected:
+    void knobDragStarted(SubWidget* widget) override;
+    void knobDragFinished(SubWidget* widget) override;
+    void knobValueChanged(SubWidget* widget, float value) override;
+
+private:
+    DistrhoUISapphire*              mainwnd;
+
+    ScopedPointer<TextLabel>        header;
+    ScopedPointer<Knob>             knob_cutoff;
+    ScopedPointer<Knob>             knob_envelope;
+    ScopedPointer<Knob>             knob_lfo;
+    ScopedPointer<Knob>             knob_modulation;
+    ScopedPointer<Knob>             knob_feedback;
+};
+
+
+DistrhoUISapphire::FilterPanel::FilterPanel(DistrhoUISapphire* mainwnd, int x0, int y0):
+    RaisedPanel(mainwnd, x0, y0, 512, 176),
+    mainwnd(mainwnd)
+{
+    header=new TextLabel(this, x0+12, y0+12, 480, 32, 8);
+    header->set_color(Color(0.6f, 0.8f, 1.0f));
+    header->set_text("Filter");
+
+    knob_cutoff=new Knob(this, Knob::Size::SMALL, x0+16, y0+48, 96, 120);
+    knob_cutoff->set_name("Cut-off");
+    knob_cutoff->setRange(10.0f, 24000.0f);
+    knob_cutoff->setId(DistrhoPluginSapphire::PARAM_FILTER_CUTOFF);
+    knob_cutoff->setCallback(this);
+
+    knob_envelope=new Knob(this, Knob::Size::SMALL, x0+112, y0+48, 96, 120);
+    knob_envelope->set_name("Envelope");
+    knob_envelope->setRange(0.0f, 2.0f);
+    knob_envelope->setId(DistrhoPluginSapphire::PARAM_FILTER_ENVELOPE);
+    knob_envelope->setCallback(this);
+
+    knob_lfo=new Knob(this, Knob::Size::SMALL, x0+208, y0+48, 96, 120);
+    knob_lfo->set_name("LFO");
+    knob_lfo->setRange(0.0f, 2.0f);
+    knob_lfo->setId(DistrhoPluginSapphire::PARAM_FILTER_LFO);
+    knob_lfo->setCallback(this);
+
+    knob_modulation=new Knob(this, Knob::Size::SMALL, x0+304, y0+48, 96, 120);
+    knob_modulation->set_name("Modulation");
+    knob_modulation->setRange(0.0f, 2.0f);
+    knob_modulation->setId(DistrhoPluginSapphire::PARAM_FILTER_MODULATION);
+    knob_modulation->setCallback(this);
+
+    knob_feedback=new Knob(this, Knob::Size::SMALL, x0+400, y0+48, 96, 120);
+    knob_feedback->set_name("Feedback");
+    knob_feedback->setRange(-1.0f, 4.0f);
+    knob_feedback->setId(DistrhoPluginSapphire::PARAM_FILTER_FEEDBACK);
+    knob_feedback->setCallback(this);
+}
+
+
+void DistrhoUISapphire::FilterPanel::parameterChanged(uint32_t index, float value)
+{
+    switch (index) {
+    case DistrhoPluginSapphire::PARAM_FILTER_CUTOFF:
+        knob_cutoff->setValue(value);
+        break;
+    case DistrhoPluginSapphire::PARAM_FILTER_ENVELOPE:
+        knob_envelope->setValue(value);
+        break;
+    case DistrhoPluginSapphire::PARAM_FILTER_LFO:
+        knob_lfo->setValue(value);
+        break;
+    case DistrhoPluginSapphire::PARAM_FILTER_MODULATION:
+        knob_modulation->setValue(value);
+        break;
+    case DistrhoPluginSapphire::PARAM_FILTER_FEEDBACK:
+        knob_feedback->setValue(value);
+        break;
+    }
+}
+
+
+void DistrhoUISapphire::FilterPanel::knobDragStarted(SubWidget* widget)
+{
+    mainwnd->editParameter(widget->getId(), true);
+}
+
+
+void DistrhoUISapphire::FilterPanel::knobDragFinished(SubWidget* widget)
+{
+    mainwnd->editParameter(widget->getId(), false);
+}
+
+
+void DistrhoUISapphire::FilterPanel::knobValueChanged(SubWidget* widget, float value)
+{
+    mainwnd->setParameterValue(widget->getId(), value);
+}
+
+
 DistrhoUISapphire::DistrhoUISapphire()
 {
     setSize(1632, 784);
@@ -437,6 +540,7 @@ DistrhoUISapphire::DistrhoUISapphire()
 
     spectrumpanel=new SpectrumPanel(this, 16, 64);
     excitationpanel=new ExcitationPanel(this, 16, 592);
+    filterpanel=new FilterPanel(this, 448, 592);
 }
 
 
@@ -449,6 +553,7 @@ void DistrhoUISapphire::parameterChanged(uint32_t index, float value)
 {
     spectrumpanel->parameterChanged(index, value);
     excitationpanel->parameterChanged(index, value);
+    filterpanel->parameterChanged(index, value);
 }
 
 

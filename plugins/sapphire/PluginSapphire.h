@@ -34,6 +34,15 @@ struct ExcitationParameters {
 };
 
 
+struct FilterParameters {
+    float   cutoff=1000.0f;
+    float   envelope=1.0f;
+    float   lfo=0.0f;
+    float   modulation=0.0f;
+    float   feedback=0.0f;
+};
+
+
 class DistrhoPluginSapphire : public Plugin
 {
 public:
@@ -51,6 +60,11 @@ public:
         PARAM_EXCITATION_DECAY,
         PARAM_EXCITATION_SUSTAIN,
         PARAM_EXCITATION_RELEASE,
+        PARAM_FILTER_CUTOFF,
+        PARAM_FILTER_ENVELOPE,
+        PARAM_FILTER_LFO,
+        PARAM_FILTER_MODULATION,
+        PARAM_FILTER_FEEDBACK,
         NUM_PARAMETERS
     };
 
@@ -147,6 +161,7 @@ private:
     float       bandwidth_exponent=1.0f;
 
     ExcitationParameters    excitation;
+    FilterParameters        filter;
 
     Waveform*   waveform=nullptr;
 
