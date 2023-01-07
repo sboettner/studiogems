@@ -33,6 +33,49 @@ DistrhoPluginSapphire::Waveform::~Waveform()
 }
 
 
+Downsampler::Downsampler()
+{
+    buffer=new float[bufsize];
+
+    for (uint i=0;i<bufsize;i++)
+        buffer[i]=0.0f;
+}
+
+
+Downsampler::~Downsampler()
+{
+    delete[] buffer;
+}
+
+
+float* Downsampler::get_input_buffer(uint& size)
+{
+    if (fillptr+size>bufsize)
+        size=bufsize-fillptr;
+    
+    float* tmp=buffer + fillptr;
+
+    fillptr+=size;
+    fillptr&=bufmask;
+
+    for (uint i=0;i<size;i++)
+        tmp[i]=0.0f;
+
+    return tmp;
+}
+
+
+void Downsampler::write_output(float* dst, uint size)
+{
+    // FIXME: implement better lowpass filter
+    for (uint i=0;i<size;i++)
+        dst[i]=buffer[(fillptr + (i-size)*2 - 2) & bufmask] * 0.125f +
+               buffer[(fillptr + (i-size)*2 - 1) & bufmask] * 0.375f +
+               buffer[(fillptr + (i-size)*2    ) & bufmask] * 0.375f +
+               buffer[(fillptr + (i-size)*2 + 1) & bufmask] * 0.125f;
+}
+
+
 class Excitation {
 public:
     Excitation(const ExcitationParameters&, float velocity, float delay, float samplerate);
@@ -173,6 +216,8 @@ struct DistrhoPluginSapphire::Voice {
     const DistrhoPluginSapphire&    plugin;
     int     note;
 
+    float   samplerate;
+
     double  step;
     double  phase0;
     double  phase1;
@@ -184,12 +229,13 @@ struct DistrhoPluginSapphire::Voice {
     ExcitationUpsampler excitation_upsampler;
     ExcitationUpsampler cutoff_upsampler;
 
-    Voice(const DistrhoPluginSapphire& plugin, int note, float velocity, float delay, double samplerate):
+    Voice(const DistrhoPluginSapphire& plugin, int note, float velocity, float delay, float samplerate):
         plugin(plugin),
         note(note),
-        excitation(plugin.excitation, velocity, delay/16, (float) samplerate/16),
-        excitation_upsampler(16),
-        cutoff_upsampler(16)
+        samplerate(samplerate),
+        excitation(plugin.excitation, velocity, delay/32, samplerate/32),
+        excitation_upsampler(32),
+        cutoff_upsampler(32)
     {
         phase0=ldexpf(rand()&0xfffff, -20);
         phase1=ldexpf(rand()&0xfffff, -20);
@@ -217,10 +263,10 @@ void DistrhoPluginSapphire::Voice::produce(Waveform* waveform, float* out0, floa
     float* cutoffbuf=(float*) alloca(count*sizeof(float)/16);
     float* cutoffbuf_upsampled=(float*) alloca(count*sizeof(float));
 
-    excitation.produce(excbuf, count/16);
+    excitation.produce(excbuf, count/32);
 
-    for (int i=0;i<count/16;i++)
-        cutoffbuf[i]=tanf(M_PI*std::min(0.49f, plugin.filter.cutoff*powf(excbuf[i], plugin.filter.envelope)/(float) plugin.getSampleRate()));
+    for (int i=0;i<count/32;i++)
+        cutoffbuf[i]=tanf(M_PI*std::min(0.49f, plugin.filter.cutoff*powf(excbuf[i], plugin.filter.envelope)/samplerate));
 
     excitation_upsampler.upsample(excbuf_upsampled, excbuf, count);
     cutoff_upsampler.upsample(cutoffbuf_upsampled, cutoffbuf, count);
@@ -622,7 +668,7 @@ void DistrhoPluginSapphire::run(const float**, float** outputs, uint32_t frames,
         const auto& ev=midievents[i];
 
         if ((ev.data[0]&0xf0)==0x90)
-            voices.emplace_back(new Voice(*this, ev.data[1], ev.data[2]/127.0f, ev.frame, getSampleRate()));
+            voices.emplace_back(new Voice(*this, ev.data[1], ev.data[2]/127.0f, ev.frame, 2*getSampleRate()));
 
         if ((ev.data[0]&0xf0)==0x80)
             for (auto& v: voices)
@@ -630,14 +676,22 @@ void DistrhoPluginSapphire::run(const float**, float** outputs, uint32_t frames,
                     v->note_off();
     }
 
-    for (uint32_t i=0;i<frames;i++) {
-        outputs[0][i]=0.0f;
-        outputs[1][i]=0.0f;
+    uint outptr=0;
+    while (outptr<2*frames) {
+        uint chunksize=2*frames-outptr;
+
+        float* buf0=downsamplers[0].get_input_buffer(chunksize);
+        float* buf1=downsamplers[1].get_input_buffer(chunksize);
+
+        if (waveform)
+            for (auto& v: voices)
+                v->produce(waveform, buf0, buf1, chunksize);
+
+        outptr+=chunksize;
     }
 
-    if (waveform)
-        for (auto& v: voices)
-            v->produce(waveform, outputs[0], outputs[1], frames);
+    downsamplers[0].write_output(outputs[0], frames);
+    downsamplers[1].write_output(outputs[1], frames);
 
     voices.erase(std::remove_if(voices.begin(), voices.end(), [](const std::unique_ptr<Voice>& voice) { return voice->terminated(); }), voices.end());
 }

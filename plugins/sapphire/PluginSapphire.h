@@ -43,6 +43,23 @@ struct FilterParameters {
 };
 
 
+class Downsampler {
+public:
+    Downsampler();
+    ~Downsampler();
+
+    float* get_input_buffer(uint& size);
+    void write_output(float* dst, uint size);
+
+private:
+    const static uint bufsize=8192;
+    const static uint bufmask=bufsize-1;
+
+    float*  buffer;
+    uint    fillptr=0;
+};
+
+
 class DistrhoPluginSapphire : public Plugin
 {
 public:
@@ -162,6 +179,8 @@ private:
 
     ExcitationParameters    excitation;
     FilterParameters        filter;
+
+    Downsampler downsamplers[2];
 
     Waveform*   waveform=nullptr;
 
