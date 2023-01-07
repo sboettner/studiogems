@@ -144,7 +144,7 @@ public:
     {
         float G=g / (1.0f+g);
         float S=(s4 + G*(s3 + G*(s2 + G*s1))) * (1.0f-G);
-        float y=(x - feedback*S) / (1.0f + feedback*G*G*G*G);
+        float y=(x*(1.0f+feedback) - feedback*S) / (1.0f + feedback*G*G*G*G);
 
         float v;
 
@@ -180,13 +180,16 @@ struct DistrhoPluginSapphire::Voice {
     LowpassLadderFilter lp0, lp1;
 
     Excitation          excitation;
+
     ExcitationUpsampler excitation_upsampler;
+    ExcitationUpsampler cutoff_upsampler;
 
     Voice(const DistrhoPluginSapphire& plugin, int note, float velocity, float delay, double samplerate):
         plugin(plugin),
         note(note),
         excitation(plugin.excitation, velocity, delay/16, (float) samplerate/16),
-        excitation_upsampler(16)
+        excitation_upsampler(16),
+        cutoff_upsampler(16)
     {
         phase0=ldexpf(rand()&0xfffff, -20);
         phase1=ldexpf(rand()&0xfffff, -20);
@@ -211,9 +214,16 @@ void DistrhoPluginSapphire::Voice::produce(Waveform* waveform, float* out0, floa
 {
     float* excbuf=(float*) alloca(count*sizeof(float)/16);
     float* excbuf_upsampled=(float*) alloca(count*sizeof(float));
+    float* cutoffbuf=(float*) alloca(count*sizeof(float)/16);
+    float* cutoffbuf_upsampled=(float*) alloca(count*sizeof(float));
 
     excitation.produce(excbuf, count/16);
+
+    for (int i=0;i<count/16;i++)
+        cutoffbuf[i]=tanf(M_PI*std::min(0.49f, plugin.filter.cutoff*powf(excbuf[i], plugin.filter.envelope)/(float) plugin.getSampleRate()));
+
     excitation_upsampler.upsample(excbuf_upsampled, excbuf, count);
+    cutoff_upsampler.upsample(cutoffbuf_upsampled, cutoffbuf, count);
 
     for (int i=0;i<count;i++) {
         double s=phase0*waveform->length;
@@ -224,7 +234,7 @@ void DistrhoPluginSapphire::Voice::produce(Waveform* waveform, float* out0, floa
         s-=s0;
         t-=t0;
 
-        const float g=tanf(M_PI*std::min(0.49f, plugin.filter.cutoff*powf(excbuf_upsampled[i], plugin.filter.envelope)/(float) plugin.getSampleRate()));
+        const float g=cutoffbuf_upsampled[i];
 
         out0[i]+=lp0((waveform->sample[s0]*(1.0-s) + waveform->sample[(s0+1)&(waveform->length-1)]*s) * excbuf_upsampled[i], g, plugin.filter.feedback);
         out1[i]+=lp1((waveform->sample[t0]*(1.0-t) + waveform->sample[(t0+1)&(waveform->length-1)]*t) * excbuf_upsampled[i], g, plugin.filter.feedback);
