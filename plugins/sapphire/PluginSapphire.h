@@ -36,6 +36,7 @@ struct ExcitationParameters {
 
 struct FilterParameters {
     float   cutoff=1000.0f;
+    float   spread=0.0f;
     float   envelope=1.0f;
     float   lfo=0.0f;
     float   modulation=0.0f;
@@ -78,6 +79,7 @@ public:
         PARAM_EXCITATION_SUSTAIN,
         PARAM_EXCITATION_RELEASE,
         PARAM_FILTER_CUTOFF,
+        PARAM_FILTER_SPREAD,
         PARAM_FILTER_ENVELOPE,
         PARAM_FILTER_LFO,
         PARAM_FILTER_MODULATION,

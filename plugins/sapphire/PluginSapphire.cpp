@@ -183,27 +183,34 @@ class LowpassLadderFilter {
     float   s1=0.0f, s2=0.0f, s3=0.0f, s4=0.0f;
 
 public:
-    float operator()(float x, float g, float feedback)
+    float operator()(float x, float g, float spread, float feedback)
     {
-        float G=g / (1.0f+g);
-        float S=(s4 + G*(s3 + G*(s2 + G*s1))) * (1.0f-G);
-        float y=(x*(1.0f+feedback) - feedback*S) / (1.0f + feedback*G*G*G*G);
+        const float G1=g / (1.0f+g);
+        g*=spread;
+        const float G2=g / (1.0f+g);
+        g*=spread;
+        const float G3=g / (1.0f+g);
+        g*=spread;
+        const float G4=g / (1.0f+g);
+
+        float S=(s4*(1.0f-G4) + G4*(s3*(1.0f-G3) + G3*(s2*(1.0f-G2) + G2*s1*(1.0f-G1))));
+        float y=(x*(1.0f+feedback) - feedback*S) / (1.0f + feedback*G1*G2*G3*G4);
 
         float v;
 
-        v=(y-s1) * G;
+        v=(y-s1) * G1;
         y=v+s1;
         s1=y+v;
 
-        v=(y-s2) * G;
+        v=(y-s2) * G2;
         y=v+s2;
         s2=y+v;
 
-        v=(y-s3) * G;
+        v=(y-s3) * G3;
         y=v+s3;
         s3=y+v;
 
-        v=(y-s4) * G;
+        v=(y-s4) * G4;
         y=v+s4;
         s4=y+v;
 
@@ -265,11 +272,15 @@ void DistrhoPluginSapphire::Voice::produce(Waveform* waveform, float* out0, floa
 
     excitation.produce(excbuf, count/32);
 
+    const float basefreq=440.0f * expf((note-69)*M_LN2/12) / samplerate;
+    const float log_cutoff=logf(plugin.filter.cutoff);
     for (int i=0;i<count/32;i++)
-        cutoffbuf[i]=tanf(M_PI*std::min(0.49f, plugin.filter.cutoff*powf(excbuf[i], plugin.filter.envelope)/samplerate));
+        cutoffbuf[i]=tanf(std::min(basefreq*expf(log_cutoff * powf(excbuf[i], plugin.filter.envelope)), 0.475f)*M_PI/2);
 
     excitation_upsampler.upsample(excbuf_upsampled, excbuf, count);
     cutoff_upsampler.upsample(cutoffbuf_upsampled, cutoffbuf, count);
+
+    const float spread=expf(M_LN2*plugin.filter.spread/3);
 
     for (int i=0;i<count;i++) {
         double s=phase0*waveform->length;
@@ -282,8 +293,8 @@ void DistrhoPluginSapphire::Voice::produce(Waveform* waveform, float* out0, floa
 
         const float g=cutoffbuf_upsampled[i];
 
-        out0[i]+=lp0((waveform->sample[s0]*(1.0-s) + waveform->sample[(s0+1)&(waveform->length-1)]*s) * excbuf_upsampled[i], g, plugin.filter.feedback);
-        out1[i]+=lp1((waveform->sample[t0]*(1.0-t) + waveform->sample[(t0+1)&(waveform->length-1)]*t) * excbuf_upsampled[i], g, plugin.filter.feedback);
+        out0[i]+=lp0((waveform->sample[s0]*(1.0-s) + waveform->sample[(s0+1)&(waveform->length-1)]*s) * excbuf_upsampled[i], g, spread, plugin.filter.feedback);
+        out1[i]+=lp1((waveform->sample[t0]*(1.0-t) + waveform->sample[(t0+1)&(waveform->length-1)]*t) * excbuf_upsampled[i], g, spread, plugin.filter.feedback);
 
         phase0+=step;
         if (phase0>=1)
@@ -426,9 +437,17 @@ void DistrhoPluginSapphire::initParameter(uint32_t index, Parameter& parameter)
         parameter.hints      = kParameterIsLogarithmic;
         parameter.name       = "Filter Cut-off";
         parameter.symbol     = "filtercutoff";
-        parameter.ranges.def = 24000.0f;
-        parameter.ranges.min = 10.0f;
-        parameter.ranges.max = 24000.0f;
+        parameter.ranges.def = 256.0f;
+        parameter.ranges.min = 1.0f;
+        parameter.ranges.max = 256.0f;
+        break;
+    case PARAM_FILTER_SPREAD:
+        parameter.hints      = 0;
+        parameter.name       = "Filter Spread";
+        parameter.symbol     = "filterspread";
+        parameter.ranges.def = 0.0f;
+        parameter.ranges.min = 0.0f;
+        parameter.ranges.max = 3.0f;
         break;
     case PARAM_FILTER_ENVELOPE:
         parameter.hints      = 0;
@@ -497,6 +516,8 @@ float DistrhoPluginSapphire::getParameterValue(uint32_t index) const
         return excitation.release;
     case PARAM_FILTER_CUTOFF:
         return filter.cutoff;
+    case PARAM_FILTER_SPREAD:
+        return filter.spread;
     case PARAM_FILTER_ENVELOPE:
         return filter.envelope;
     case PARAM_FILTER_LFO:
@@ -564,6 +585,9 @@ void DistrhoPluginSapphire::setParameterValue(uint32_t index, float value)
         break;
     case PARAM_FILTER_CUTOFF:
         filter.cutoff=value;
+        break;
+    case PARAM_FILTER_SPREAD:
+        filter.spread=value;
         break;
     case PARAM_FILTER_ENVELOPE:
         filter.envelope=value;
