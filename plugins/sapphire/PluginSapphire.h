@@ -31,6 +31,7 @@ struct ExcitationParameters {
     float   decay=100.0f;
     float   sustain=1.0f;
     float   release=10.0f;
+    float   scaling=0.0f;
 };
 
 
@@ -78,6 +79,7 @@ public:
         PARAM_EXCITATION_DECAY,
         PARAM_EXCITATION_SUSTAIN,
         PARAM_EXCITATION_RELEASE,
+        PARAM_EXCITATION_SCALING,
         PARAM_FILTER_CUTOFF,
         PARAM_FILTER_SPREAD,
         PARAM_FILTER_ENVELOPE,

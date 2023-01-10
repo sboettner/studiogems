@@ -78,7 +78,7 @@ void Downsampler::write_output(float* dst, uint size)
 
 class Excitation {
 public:
-    Excitation(const ExcitationParameters&, float velocity, float delay, float samplerate);
+    Excitation(const ExcitationParameters&, int note, float velocity, float delay, float samplerate);
 
     void note_off(float delay);
 
@@ -103,14 +103,16 @@ private:
 };
 
 
-Excitation::Excitation(const ExcitationParameters& params, float velocity, float delay, float samplerate)
+Excitation::Excitation(const ExcitationParameters& params, int note, float velocity, float delay, float samplerate)
 {
+    const float scale=expf(params.scaling*(60-note)*M_LN2/12) * samplerate;
+
     latent_energy=1.0f;
 
-    attack_rate=-expm1f(-1000.0f/(params.attack*samplerate));
-    decay_rate=-expm1f(-1000.0f/(params.decay*samplerate));
+    attack_rate=-expm1f(-1000.0f/(scale*params.attack));
+    decay_rate=-expm1f(-1000.0f/(scale*params.decay));
     sustain_rate=decay_rate*params.sustain;
-    release_rate=-expm1f(-1000.0f/(params.release*samplerate));
+    release_rate=-expm1f(-1000.0f/(scale*params.release));
 }
 
 
@@ -240,7 +242,7 @@ struct DistrhoPluginSapphire::Voice {
         plugin(plugin),
         note(note),
         samplerate(samplerate),
-        excitation(plugin.excitation, velocity, delay/32, samplerate/32),
+        excitation(plugin.excitation, note, velocity, delay/32, samplerate/32),
         excitation_upsampler(32),
         cutoff_upsampler(32)
     {
@@ -433,6 +435,14 @@ void DistrhoPluginSapphire::initParameter(uint32_t index, Parameter& parameter)
         parameter.ranges.min = 0.1f;
         parameter.ranges.max = 1000.0f;
         break;
+    case PARAM_EXCITATION_SCALING:
+        parameter.hints      = 0;
+        parameter.name       = "Env. Scaling";
+        parameter.symbol     = "envscaling";
+        parameter.ranges.def = 0.0f;
+        parameter.ranges.min = 0.0f;
+        parameter.ranges.max = 1.0f;
+        break;
     case PARAM_FILTER_CUTOFF:
         parameter.hints      = kParameterIsLogarithmic;
         parameter.name       = "Filter Cut-off";
@@ -514,6 +524,8 @@ float DistrhoPluginSapphire::getParameterValue(uint32_t index) const
         return excitation.sustain;
     case PARAM_EXCITATION_RELEASE:
         return excitation.release;
+    case PARAM_EXCITATION_SCALING:
+        return excitation.scaling;
     case PARAM_FILTER_CUTOFF:
         return filter.cutoff;
     case PARAM_FILTER_SPREAD:
@@ -582,6 +594,9 @@ void DistrhoPluginSapphire::setParameterValue(uint32_t index, float value)
         break;
     case PARAM_EXCITATION_RELEASE:
         excitation.release=value;
+        break;
+    case PARAM_EXCITATION_SCALING:
+        excitation.scaling=value;
         break;
     case PARAM_FILTER_CUTOFF:
         filter.cutoff=value;

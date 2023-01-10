@@ -348,11 +348,12 @@ private:
     ScopedPointer<Knob>             knob_sustain;
     ScopedPointer<Knob>             knob_decay;
     ScopedPointer<Knob>             knob_release;
+    ScopedPointer<Knob>             knob_scaling;
 };
 
 
 DistrhoUISapphire::ExcitationPanel::ExcitationPanel(DistrhoUISapphire* mainwnd, int x0, int y0):
-    RaisedPanel(mainwnd, x0, y0, 416, 176),
+    RaisedPanel(mainwnd, x0, y0, 512, 176),
     mainwnd(mainwnd)
 {
     header=new TextLabel(this, x0+12, y0+12, 480, 32, 8);
@@ -382,6 +383,12 @@ DistrhoUISapphire::ExcitationPanel::ExcitationPanel(DistrhoUISapphire* mainwnd, 
     knob_release->setRange(0.1f, 1000.0f);
     knob_release->setId(DistrhoPluginSapphire::PARAM_EXCITATION_RELEASE);
     knob_release->setCallback(this);
+
+    knob_scaling=new Knob(this, Knob::Size::SMALL, x0+400, y0+48, 96, 120);
+    knob_scaling->set_name("Scaling");
+    knob_scaling->setRange(0.0f, 1.0f);
+    knob_scaling->setId(DistrhoPluginSapphire::PARAM_EXCITATION_SCALING);
+    knob_scaling->setCallback(this);
 }
 
 
@@ -399,6 +406,9 @@ void DistrhoUISapphire::ExcitationPanel::parameterChanged(uint32_t index, float 
         break;
     case DistrhoPluginSapphire::PARAM_EXCITATION_RELEASE:
         knob_release->setValue(value);
+        break;
+    case DistrhoPluginSapphire::PARAM_EXCITATION_SCALING:
+        knob_scaling->setValue(value);
         break;
     }
 }
@@ -550,7 +560,7 @@ DistrhoUISapphire::DistrhoUISapphire()
 
     spectrumpanel=new SpectrumPanel(this, 16, 64);
     excitationpanel=new ExcitationPanel(this, 16, 592);
-    filterpanel=new FilterPanel(this, 448, 592);
+    filterpanel=new FilterPanel(this, 544, 592);
 }
 
 
