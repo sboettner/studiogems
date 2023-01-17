@@ -107,7 +107,7 @@ Excitation::Excitation(const ExcitationParameters& params, int note, float veloc
 {
     const float scale=expf(params.scaling*(60-note)*M_LN2/12) * samplerate;
 
-    latent_energy=1.0f;
+    latent_energy=velocity;
 
     attack_rate=-expm1f(-1000.0f/(scale*params.attack));
     decay_rate=-expm1f(-1000.0f/(scale*params.decay));
