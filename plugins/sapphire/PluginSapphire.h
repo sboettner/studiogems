@@ -45,6 +45,20 @@ struct FilterParameters {
 };
 
 
+struct LFOParameters {
+    enum lfo_type_t {
+        LFO_TYPE_SINE,
+        LFO_TYPE_FALLING,
+        LFO_TYPE_RISING,
+        LFO_TYPE_ONESHOT
+    };
+
+    lfo_type_t  type=LFO_TYPE_SINE;
+    float       frequency=1.0f;
+    float       scaling=1.0f;
+};
+
+
 class Downsampler {
 public:
     Downsampler();
@@ -80,6 +94,9 @@ public:
         PARAM_EXCITATION_SUSTAIN,
         PARAM_EXCITATION_RELEASE,
         PARAM_EXCITATION_SCALING,
+        PARAM_LFO_TYPE,
+        PARAM_LFO_FREQUENCY,
+        PARAM_LFO_SCALING,
         PARAM_FILTER_CUTOFF,
         PARAM_FILTER_SPREAD,
         PARAM_FILTER_ENVELOPE,
@@ -182,6 +199,7 @@ private:
     float       bandwidth_exponent=1.0f;
 
     ExcitationParameters    excitation;
+    LFOParameters           lfo;
     FilterParameters        filter;
 
     Downsampler downsamplers[2];

@@ -443,6 +443,30 @@ void DistrhoPluginSapphire::initParameter(uint32_t index, Parameter& parameter)
         parameter.ranges.min = 0.0f;
         parameter.ranges.max = 1.0f;
         break;
+    case PARAM_LFO_TYPE:
+        parameter.hints      = kParameterIsInteger;
+        parameter.name       = "LFO Type";
+        parameter.symbol     = "lfotype";
+        parameter.ranges.def = 0.0f;
+        parameter.ranges.min = 0.0f;
+        parameter.ranges.max = 3.0f;
+        break;
+    case PARAM_LFO_FREQUENCY:
+        parameter.hints      = kParameterIsLogarithmic;
+        parameter.name       = "LFO Frequency";
+        parameter.symbol     = "lfofreq";
+        parameter.ranges.def = 1.0f;
+        parameter.ranges.min = 0.1f;
+        parameter.ranges.max = 10.0f;
+        break;
+    case PARAM_LFO_SCALING:
+        parameter.hints      = 0;
+        parameter.name       = "LFO Scaling";
+        parameter.symbol     = "lfoscaling";
+        parameter.ranges.def = 0.0f;
+        parameter.ranges.min = 0.0f;
+        parameter.ranges.max = 1.0f;
+        break;
     case PARAM_FILTER_CUTOFF:
         parameter.hints      = kParameterIsLogarithmic;
         parameter.name       = "Filter Cut-off";
@@ -526,6 +550,12 @@ float DistrhoPluginSapphire::getParameterValue(uint32_t index) const
         return excitation.release;
     case PARAM_EXCITATION_SCALING:
         return excitation.scaling;
+    case PARAM_LFO_TYPE:
+        return (float) lfo.type;
+    case PARAM_LFO_FREQUENCY:
+        return lfo.frequency;
+    case PARAM_LFO_SCALING:
+        return lfo.scaling;
     case PARAM_FILTER_CUTOFF:
         return filter.cutoff;
     case PARAM_FILTER_SPREAD:
@@ -597,6 +627,15 @@ void DistrhoPluginSapphire::setParameterValue(uint32_t index, float value)
         break;
     case PARAM_EXCITATION_SCALING:
         excitation.scaling=value;
+        break;
+    case PARAM_LFO_TYPE:
+        lfo.type=(LFOParameters::lfo_type_t) value;
+        break;
+    case PARAM_LFO_FREQUENCY:
+        lfo.frequency=value;
+        break;
+    case PARAM_LFO_SCALING:
+        lfo.scaling=value;
         break;
     case PARAM_FILTER_CUTOFF:
         filter.cutoff=value;
