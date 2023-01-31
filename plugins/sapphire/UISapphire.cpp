@@ -86,7 +86,7 @@ private:
 
 
 DistrhoUISapphire::SpectrumPanel::SpectrumView::SpectrumView(Widget* parent, uint x0, uint y0):
-    GraphDisplay(parent, x0, y0, 1536, 256)
+    GraphDisplay(parent, x0, y0, 1600, 256)
 {
 }
 
@@ -148,6 +148,8 @@ static float beta(float a, float b)
 
 void DistrhoUISapphire::SpectrumPanel::SpectrumView::SpectrumView::draw_graph(cairo_t* cr)
 {
+    cairo_set_operator(cr, CAIRO_OPERATOR_SOURCE);
+
     cairo_set_line_width(cr, 3.0);
     cairo_set_line_cap(cr, CAIRO_LINE_CAP_ROUND);
 
@@ -188,16 +190,14 @@ void DistrhoUISapphire::SpectrumPanel::SpectrumView::SpectrumView::draw_graph(ca
 
         if (y<=0) continue;
 
-        cairo_move_to(cr, x*24.0, 256.0);
-        cairo_line_to(cr, x*24.0, 256.0*(1.0f-y));
+        cairo_move_to(cr, x*25.0, 256.0);
+        cairo_line_to(cr, x*25.0, 256.0*(1.0f-y));
         cairo_stroke(cr);
     }
 
     cairo_set_source_rgb(cr, 0.4, 0.7, 1.0);
     plot(cr, 0.0f, 64.0f, 0.0f, 1.0f, [a=brightness, b=brightness+falloff, scale](float x) {
-        return std::pair<float, float>(
-            scale * powf(x, a) * powf(1.0f+x, -b),
-            scale*a*powf(x, a-1) * powf(1.0f+x, -b) - scale*b*powf(x, a) * powf(1.0f+x, -b-1.0f));
+        return scale * powf(0.01f+x, a) * powf(1.0f+x, -b);
     }, 128);
 }
 
