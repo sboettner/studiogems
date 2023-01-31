@@ -50,7 +50,8 @@ struct LFOParameters {
         LFO_TYPE_SINE,
         LFO_TYPE_FALLING,
         LFO_TYPE_RISING,
-        LFO_TYPE_ONESHOT
+        LFO_TYPE_ONESHOT,
+        LFO_TYPE_NOISE
     };
 
     lfo_type_t  type=LFO_TYPE_SINE;

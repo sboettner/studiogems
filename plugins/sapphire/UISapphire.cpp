@@ -551,7 +551,7 @@ DistrhoUISapphire::LFOPanel::LFOPanel(DistrhoUISapphire* mainwnd, int x0, int y0
 
     knob_type=new Knob(this, Knob::Size::SMALL, x0+16, y0+48, 96, 120);
     knob_type->set_name("Type");
-    knob_type->setRange(0.0f, 3.0f);
+    knob_type->setRange(0.0f, 4.0f);
     knob_type->setStep(1.0f);
     knob_type->setId(DistrhoPluginSapphire::PARAM_LFO_TYPE);
     knob_type->setCallback(this);
@@ -582,6 +582,9 @@ void DistrhoUISapphire::LFOPanel::parameterChanged(uint32_t index, float value)
     case DistrhoPluginSapphire::PARAM_LFO_FREQUENCY:
         knob_frequency->setValue(value);
         display->set_frequency(value);
+        break;
+    case DistrhoPluginSapphire::PARAM_LFO_SCALING:
+        knob_scaling->setValue(value);
         break;
     }
 }

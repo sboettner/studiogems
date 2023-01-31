@@ -148,6 +148,85 @@ void Excitation::produce(float* out, int count)
 }
 
 
+class LFO {
+public:
+    LFO(const LFOParameters&, int note, float delay, float samplerate);
+
+    void produce(float* out, int count);
+
+private:
+    const LFOParameters& params;
+
+    float   phase=0.0f;
+    float   step=0.0f;
+    float   coeffs[4] {};
+};
+
+
+LFO::LFO(const LFOParameters& params, int note, float delay, float samplerate):params(params)
+{
+    step=params.frequency / samplerate;
+}
+
+
+void LFO::produce(float* out, int count)
+{
+    switch (params.type) {
+    case LFOParameters::LFO_TYPE_SINE:
+        for (int i=0;i<count;i++) {
+            out[i]=sinf(2*M_PI*phase);
+
+            phase+=step;
+            if (phase>=1.0f)
+                phase-=1.0f;
+        }
+        break;
+    case LFOParameters::LFO_TYPE_FALLING:
+        for (int i=0;i<count;i++) {
+            out[i]=-phase;
+            phase+=step;
+        }
+        break;
+    case LFOParameters::LFO_TYPE_RISING:
+        for (int i=0;i<count;i++) {
+            phase+=step;
+            out[i]=logf(1.0f - expf(-phase));
+        }
+        break;
+    case LFOParameters::LFO_TYPE_ONESHOT:
+        for (int i=0;i<count;i++) {
+            phase+=step;
+            out[i]=logf(phase) - phase;
+        }
+        break;
+    case LFOParameters::LFO_TYPE_NOISE:
+        for (int i=0;i<count;i++) {
+            const float t=phase;
+
+            out[i]=coeffs[0]*(1-t)*(1-t)*(1-t)/6 +
+                   coeffs[1]*(3*t*t*t - 6*t*t + 4)/6 +
+                   coeffs[2]*(-3*t*t*t + 3*t*t + 3*t + 1)/6 +
+                   coeffs[3]*t*t*t/6;
+
+            phase+=step;
+            if (phase>=1.0f) {
+                phase-=1.0f;
+                
+                coeffs[0]=coeffs[1];
+                coeffs[1]=coeffs[2];
+                coeffs[2]=coeffs[3];
+                coeffs[3]=ldexpf((rand()&0xffffff) - 0x800000, -23);
+            }
+        }
+        break;
+    default:
+        for (int i=0;i<count;i++)
+            out[i]=0.0f;
+        break;
+    }
+}
+
+
 class ExcitationUpsampler {
     const int   factor;
 
@@ -234,6 +313,7 @@ struct DistrhoPluginSapphire::Voice {
     LowpassLadderFilter lp0, lp1;
 
     Excitation          excitation;
+    LFO                 lfo;
 
     ExcitationUpsampler excitation_upsampler;
     ExcitationUpsampler cutoff_upsampler;
@@ -243,6 +323,7 @@ struct DistrhoPluginSapphire::Voice {
         note(note),
         samplerate(samplerate),
         excitation(plugin.excitation, note, velocity, delay/32, samplerate/32),
+        lfo(plugin.lfo, note, delay/32, samplerate/32),
         excitation_upsampler(32),
         cutoff_upsampler(32)
     {
@@ -269,15 +350,17 @@ void DistrhoPluginSapphire::Voice::produce(Waveform* waveform, float* out0, floa
 {
     float* excbuf=(float*) alloca(count*sizeof(float)/16);
     float* excbuf_upsampled=(float*) alloca(count*sizeof(float));
+    float* lfobuf=(float*) alloca(count*sizeof(float)/16);
     float* cutoffbuf=(float*) alloca(count*sizeof(float)/16);
     float* cutoffbuf_upsampled=(float*) alloca(count*sizeof(float));
 
     excitation.produce(excbuf, count/32);
+    lfo.produce(lfobuf, count/32);
 
     const float basefreq=440.0f * expf((note-69)*M_LN2/12) / samplerate;
     const float log_cutoff=logf(plugin.filter.cutoff);
     for (int i=0;i<count/32;i++)
-        cutoffbuf[i]=tanf(std::min(basefreq*expf(log_cutoff * powf(excbuf[i], plugin.filter.envelope)), 0.475f)*M_PI/2);
+        cutoffbuf[i]=tanf(std::min(basefreq*expf(log_cutoff * powf(excbuf[i], plugin.filter.envelope) + lfobuf[i]*plugin.filter.lfo), 0.475f)*M_PI/2);
 
     excitation_upsampler.upsample(excbuf_upsampled, excbuf, count);
     cutoff_upsampler.upsample(cutoffbuf_upsampled, cutoffbuf, count);
@@ -449,7 +532,7 @@ void DistrhoPluginSapphire::initParameter(uint32_t index, Parameter& parameter)
         parameter.symbol     = "lfotype";
         parameter.ranges.def = 0.0f;
         parameter.ranges.min = 0.0f;
-        parameter.ranges.max = 3.0f;
+        parameter.ranges.max = 4.0f;
         break;
     case PARAM_LFO_FREQUENCY:
         parameter.hints      = kParameterIsLogarithmic;
