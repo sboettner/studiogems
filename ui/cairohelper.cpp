@@ -28,7 +28,7 @@ void cairo_rounded_rectangle(cairo_t* cr, double x0, double y0, double w, double
     cairo_line_to(cr, x0+w-r, y0);
     cairo_curve_to(cr, x0+w-r4, y0, x0+w, y0+r4, x0+w, y0+r);
     cairo_line_to(cr, x0+w, y0+h-r);
-    cairo_curve_to(cr, x0+w, y0+h-r4, x0+w-r4, x0+h, x0+w-r, y0+h);
+    cairo_curve_to(cr, x0+w, y0+h-r4, x0+w-r4, y0+h, x0+w-r, y0+h);
     cairo_line_to(cr, x0+r, y0+h);
     cairo_curve_to(cr, x0+r4, y0+h, x0, y0+h-r4, x0, y0+h-r);
     cairo_line_to(cr, x0, y0+r);
