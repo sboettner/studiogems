@@ -30,16 +30,21 @@ public:
     class Callback {
     public:
         virtual void value_changed(SubWidget*, int) = 0;
+        virtual void value_change_begin(SubWidget*, int) = 0;
+        virtual void value_change_end(SubWidget*, int) = 0;
     };
 
     SpinBox(Widget* parent, int x0, int y0, int width, int height);
 
+    void set_value(int);
     void set_bounds(int minval, int maxval);
     void set_label(const char*);
+    void set_display_func(std::function<const char*(int)> fn);
 
     void set_callback(Callback*);
 
 protected:
+    bool onScroll(const ScrollEvent&) override;
     void onCairoDisplay(const CairoGraphicsContext&) override;
 
 private:
@@ -55,6 +60,10 @@ private:
     int         value=0;
     int         minvalue=INT_MIN;
     int         maxvalue=INT_MAX;
+
+    std::function<const char*(int)> displayfn;
+
+    static const char* default_display_func(int);
 };
 
 }
