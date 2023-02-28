@@ -18,6 +18,7 @@
 #include <functional>
 #include <raisedpanel.h>
 #include <graphdisplay.h>
+#include <spinbox.h>
 #include "PluginSapphire.h"
 #include "UISapphire.h"
 
@@ -25,7 +26,7 @@ START_NAMESPACE_DISTRHO
 
 using namespace StudioGemsUI;
 
-class DistrhoUISapphire::SpectrumPanel:public RaisedPanel, KnobEventHandler::Callback {
+class DistrhoUISapphire::SpectrumPanel:public RaisedPanel, KnobEventHandler::Callback, public SpinBox::Callback {
 public:
     SpectrumPanel(DistrhoUISapphire*, int x0, int y0);
 
@@ -36,8 +37,14 @@ protected:
     void knobDragFinished(SubWidget* widget) override;
     void knobValueChanged(SubWidget* widget, float value) override;
 
+    void value_changed(SubWidget*, int) override;
+    void value_change_begin(SubWidget*, int) override;
+    void value_change_end(SubWidget*, int) override;
+
 private:
     class SpectrumView;
+
+    static const char* display_func_power_of_two(int);
 
     DistrhoUISapphire*              mainwnd;
 
@@ -55,6 +62,10 @@ private:
 
     ScopedPointer<Knob>             knob_bandwidth;
     ScopedPointer<Knob>             knob_bandwidth_exponent;
+
+    ScopedPointer<SpinBox>          spin_random;
+    ScopedPointer<SpinBox>          spin_harmonics;
+    ScopedPointer<SpinBox>          spin_periods;
 };
 
 
@@ -62,6 +73,7 @@ class DistrhoUISapphire::SpectrumPanel::SpectrumView:public GraphDisplay {
 public:
     SpectrumView(Widget* parent, uint x0, uint y0);
 
+    void set_randomseed(unsigned int);
     void set_brightness(float);
     void set_falloff(float);
     void set_two_factor(float);
@@ -74,6 +86,8 @@ protected:
     void draw_graph(cairo_t*) override;
 
 private:
+    unsigned int    randomseed=0;
+
     float   brightness=0.0f;
     float   falloff=1.0f;
     
@@ -88,6 +102,13 @@ private:
 DistrhoUISapphire::SpectrumPanel::SpectrumView::SpectrumView(Widget* parent, uint x0, uint y0):
     GraphDisplay(parent, x0, y0, 1600, 256)
 {
+}
+
+
+void DistrhoUISapphire::SpectrumPanel::SpectrumView::set_randomseed(unsigned int r)
+{
+    randomseed=r;
+    repaint();
 }
 
 
@@ -155,6 +176,8 @@ void DistrhoUISapphire::SpectrumPanel::SpectrumView::SpectrumView::draw_graph(ca
 
     float scale=1/sqrtf(beta(brightness*2+1, 2*falloff-1));
 
+    XorshiftRNG randomharmonic(randomseed*40507U);
+
     cairo_set_source_rgb(cr, 1.0, 1.0, 0.2);
     for (int i=0;i<64;i++) {
         float x=i+0.5f;
@@ -187,6 +210,9 @@ void DistrhoUISapphire::SpectrumPanel::SpectrumView::SpectrumView::draw_graph(ca
                 h/=p;
                 y*=higher_factor;
             }
+
+        if (randomseed)
+            y*=sqrtf(-logf(ldexpf((randomharmonic()&0xfffff)+1, -20)));
 
         if (y<=0) continue;
 
@@ -265,12 +291,50 @@ DistrhoUISapphire::SpectrumPanel::SpectrumPanel(DistrhoUISapphire* mainwnd, int 
     knob_bandwidth_exponent->setRange(0.0f, 1.0f);
     knob_bandwidth_exponent->setId(DistrhoPluginSapphire::PARAM_BANDWIDTH_EXPONENT);
     knob_bandwidth_exponent->setCallback(this);
+
+    spin_harmonics=new SpinBox(this, x0+1344, y0+344, 256, 32);
+    spin_harmonics->setId(DistrhoPluginSapphire::PARAM_HARMONICS);
+    spin_harmonics->set_label("Harmonics");
+    spin_harmonics->set_display_func(display_func_power_of_two);
+    spin_harmonics->set_bounds(0, 8);
+    spin_harmonics->set_callback(this);
+
+    spin_periods=new SpinBox(this, x0+1344, y0+400, 256, 32);
+    spin_periods->setId(DistrhoPluginSapphire::PARAM_PERIODS);
+    spin_periods->set_label("Periods");
+    spin_periods->set_display_func(display_func_power_of_two);
+    spin_periods->set_bounds(0, 12);
+    spin_periods->set_callback(this);
+
+    spin_random=new SpinBox(this, x0+1344, y0+456, 256, 32);
+    spin_random->setId(DistrhoPluginSapphire::PARAM_RANDOMSEED);
+    spin_random->set_label("Random");
+    spin_random->set_bounds(0, 65535);
+    spin_random->set_callback(this);
+}
+
+
+const char* DistrhoUISapphire::SpectrumPanel::display_func_power_of_two(int val)
+{
+    static char buf[64];
+    sprintf(buf, "%d", 1<<val);
+    return buf;
 }
 
 
 void DistrhoUISapphire::SpectrumPanel::parameterChanged(uint32_t index, float value)
 {
     switch (index) {
+    case DistrhoPluginSapphire::PARAM_HARMONICS:
+        spin_harmonics->set_value((int) value);
+        break;
+    case DistrhoPluginSapphire::PARAM_PERIODS:
+        spin_periods->set_value((int) value);
+        break;
+    case DistrhoPluginSapphire::PARAM_RANDOMSEED:
+        spectrumview->set_randomseed((unsigned int) value);
+        spin_random->set_value((int) value);
+        break;
     case DistrhoPluginSapphire::PARAM_BRIGHTNESS:
         spectrumview->set_brightness(value);
         knob_brightness->setValue(value, false);
@@ -326,6 +390,26 @@ void DistrhoUISapphire::SpectrumPanel::knobValueChanged(SubWidget* widget, float
     mainwnd->setParameterValue(widget->getId(), value);
 
     parameterChanged(widget->getId(), value);
+}
+
+
+void DistrhoUISapphire::SpectrumPanel::value_change_begin(SubWidget* widget, int value)
+{
+    mainwnd->editParameter(widget->getId(), true);
+}
+
+
+void DistrhoUISapphire::SpectrumPanel::value_change_end(SubWidget* widget, int value)
+{
+    mainwnd->editParameter(widget->getId(), false);
+}
+
+
+void DistrhoUISapphire::SpectrumPanel::value_changed(SubWidget* widget, int value)
+{
+    mainwnd->setParameterValue(widget->getId(), (float) value);
+
+    parameterChanged(widget->getId(), (float) value);
 }
 
 

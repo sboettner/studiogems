@@ -77,10 +77,29 @@ private:
 };
 
 
+class XorshiftRNG {
+    unsigned int    state;
+
+public:
+    explicit XorshiftRNG(unsigned int state):state(state) {}
+
+    unsigned int operator()()
+    {
+        state^=state<<13;
+        state^=state>>17;
+        state^=state<<5;
+        return state;
+    }
+};
+
+
 class DistrhoPluginSapphire : public Plugin
 {
 public:
     enum parameter_t {
+        PARAM_HARMONICS,
+        PARAM_PERIODS,
+        PARAM_RANDOMSEED,
         PARAM_BRIGHTNESS,
         PARAM_FALLOFF,
         PARAM_TWO_FACTOR,
@@ -187,6 +206,10 @@ private:
     double      step=0.0;
     double      phase=0.0;
 
+    int         harmonics=6;
+    int         periods=8;
+    uint        randomseed=0;
+    
     float       brightness=0.0f;
     float       falloff=1.0f;
 

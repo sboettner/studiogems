@@ -414,6 +414,30 @@ void DistrhoPluginSapphire::initAudioPort(bool input, uint32_t index, AudioPort&
 void DistrhoPluginSapphire::initParameter(uint32_t index, Parameter& parameter)
 {
     switch (index) {
+    case PARAM_HARMONICS:
+        parameter.hints      = kParameterIsInteger;
+        parameter.name       = "Harmonics";
+        parameter.symbol     = "harmonics";
+        parameter.ranges.def = 6.0f;
+        parameter.ranges.min = 0.0f;
+        parameter.ranges.max = 8.0f;
+        break;        
+    case PARAM_PERIODS:
+        parameter.hints      = kParameterIsInteger;
+        parameter.name       = "Periods";
+        parameter.symbol     = "periods";
+        parameter.ranges.def = 8.0f;
+        parameter.ranges.min = 0.0f;
+        parameter.ranges.max = 12.0f;
+        break;        
+    case PARAM_RANDOMSEED:
+        parameter.hints      = kParameterIsInteger;
+        parameter.name       = "Random Seed";
+        parameter.symbol     = "random";
+        parameter.ranges.def = 0.0f;
+        parameter.ranges.min = 0.0f;
+        parameter.ranges.max = 65535.0f;
+        break;        
     case PARAM_BRIGHTNESS:
         parameter.hints      = 0;
         parameter.name       = "Brightness";
@@ -605,6 +629,12 @@ void DistrhoPluginSapphire::initParameter(uint32_t index, Parameter& parameter)
 float DistrhoPluginSapphire::getParameterValue(uint32_t index) const
 {
     switch (index) {
+    case PARAM_HARMONICS:
+        return (float) harmonics;
+    case PARAM_PERIODS:
+        return (float) periods;
+    case PARAM_RANDOMSEED:
+        return (float) randomseed;
     case PARAM_BRIGHTNESS:
         return brightness;
     case PARAM_FALLOFF:
@@ -660,6 +690,18 @@ float DistrhoPluginSapphire::getParameterValue(uint32_t index) const
 void DistrhoPluginSapphire::setParameterValue(uint32_t index, float value)
 {
     switch (index) {
+    case PARAM_HARMONICS:
+        harmonics=(int) value;
+        invalidate_waveform();
+        break;
+    case PARAM_PERIODS:
+        periods=(int) value;
+        invalidate_waveform();
+        break;
+    case PARAM_RANDOMSEED:
+        randomseed=(int) value;
+        invalidate_waveform();
+        break;
     case PARAM_BRIGHTNESS:
         brightness=value;
         invalidate_waveform();
@@ -770,6 +812,9 @@ void DistrhoPluginSapphire::invalidate_waveform()
 
     double scale=0.25 / sqrt(beta(2*brightness+1, 2*falloff-1));
     
+    XorshiftRNG randomharmonic(randomseed*40507U);
+    XorshiftRNG randomphase(0x57103F4EU);
+
     for (int i=1;i<=64;i++) {
         double x=i-0.5;
         double y=scale * pow(x, brightness) * pow(1.0+x, -brightness-falloff);
@@ -802,11 +847,14 @@ void DistrhoPluginSapphire::invalidate_waveform()
                 y*=higher_factor;
             }
 
+        if (randomseed)
+            y*=sqrtf(-logf(ldexpf((randomharmonic()&0xfffff)+1, -20)));
+
         float bw=256.0f * powf((float) i, bandwidth_exponent) * expm1f(M_LN2*bandwidth/1200);
 
         for (int j=-127;j<=127;j++) {
             float amp=y * (erff((j+0.5f)/bw) - erff((j-0.5f)/bw)) / 2;
-            float phase=2*M_PI*ldexpf(rand()&0xfffff, -20);
+            float phase=2*M_PI*ldexpf(randomphase()&0xfffff, -20);
 
             newwaveform->sample[                    i*256+j]=amp * cosf(phase);
             newwaveform->sample[newwaveform->length-i*256-j]=amp * sinf(phase);
