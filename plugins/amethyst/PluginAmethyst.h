@@ -102,6 +102,8 @@ private:
     float       attack=0.0f;
     float       decay=1000.0f;
 
+    float       latent_energy=0.0f;
+    float       energy=0.0f;
 
     DISTRHO_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(DistrhoPluginAmethyst)
 };

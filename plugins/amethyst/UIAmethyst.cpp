@@ -15,12 +15,88 @@
  * For a full copy of the GNU General Public License see the LICENSE file.
  */
 
+#include <raisedpanel.h>
 #include "PluginAmethyst.h"
 #include "UIAmethyst.h"
 
 START_NAMESPACE_DISTRHO
 
 using namespace StudioGemsUI;
+
+class DistrhoUIAmethyst::ExcitationPanel:public RaisedPanel, KnobEventHandler::Callback {
+public:
+    ExcitationPanel(DistrhoUIAmethyst*, int x0, int y0);
+
+    void parameterChanged(uint32_t index, float value);
+
+protected:
+    void knobDragStarted(SubWidget* widget) override;
+    void knobDragFinished(SubWidget* widget) override;
+    void knobValueChanged(SubWidget* widget, float value) override;
+
+private:
+    DistrhoUIAmethyst*              mainwnd;
+
+    ScopedPointer<TextLabel>        header;
+    ScopedPointer<Knob>             knob_attack;
+    ScopedPointer<Knob>             knob_decay;
+};
+
+
+DistrhoUIAmethyst::ExcitationPanel::ExcitationPanel(DistrhoUIAmethyst* mainwnd, int x0, int y0):
+    RaisedPanel(mainwnd, x0, y0, 320, 224),
+    mainwnd(mainwnd)
+{
+    header=new TextLabel(this, x0+12, y0+12, 256, 32, 8);
+    header->set_color(Color(0.6f, 0.8f, 1.0f));
+    header->set_text("Excitation");
+
+    knob_attack=new Knob(this, Knob::Size::MEDIUM, x0+16, y0+48, 128, 160);
+    knob_attack->set_name("Attack");
+    knob_attack->setRange(0.0f, 1000.0f);
+    knob_attack->setId(DistrhoPluginAmethyst::PARAM_ATTACK);
+    knob_attack->setCallback(this);
+
+    knob_decay=new Knob(this, Knob::Size::MEDIUM, x0+144, y0+48, 128, 160);    
+    knob_decay->set_name("Decay");
+    knob_decay->setRange(0.0f, 1000.0f);
+    knob_decay->setId(DistrhoPluginAmethyst::PARAM_DECAY);
+    knob_decay->setCallback(this);
+}
+
+
+void DistrhoUIAmethyst::ExcitationPanel::parameterChanged(uint32_t index, float value)
+{
+    switch (index) {
+    case DistrhoPluginAmethyst::PARAM_ATTACK:
+        knob_attack->setValue(value);
+        break;
+    case DistrhoPluginAmethyst::PARAM_DECAY:
+        knob_decay->setValue(value);
+        break;
+    }
+}
+
+
+void DistrhoUIAmethyst::ExcitationPanel::knobDragStarted(SubWidget* widget)
+{
+    mainwnd->editParameter(widget->getId(), true);
+}
+
+
+void DistrhoUIAmethyst::ExcitationPanel::knobDragFinished(SubWidget* widget)
+{
+    mainwnd->editParameter(widget->getId(), false);
+}
+
+
+void DistrhoUIAmethyst::ExcitationPanel::knobValueChanged(SubWidget* widget, float value)
+{
+    mainwnd->setParameterValue(widget->getId(), value);
+
+    parameterChanged(widget->getId(), value);
+}
+
 
 DistrhoUIAmethyst::DistrhoUIAmethyst()
 {
@@ -34,6 +110,8 @@ DistrhoUIAmethyst::DistrhoUIAmethyst()
     title=new TextLabel(this, 12, 12, 384, 32, 8);
     title->set_color(Color(0.6f, 0.8f, 1.0f));
     title->set_text("Amethyst Percussion");
+
+    excitationpanel=new ExcitationPanel(this, 16, 64);
 }
 
 
@@ -44,6 +122,7 @@ DistrhoUIAmethyst::~DistrhoUIAmethyst()
 
 void DistrhoUIAmethyst::parameterChanged(uint32_t index, float value)
 {
+    excitationpanel->parameterChanged(index, value);
 }
 
 

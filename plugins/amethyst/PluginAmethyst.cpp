@@ -99,9 +99,28 @@ void DistrhoPluginAmethyst::deactivate()
 
 void DistrhoPluginAmethyst::run(const float**, float** outputs, uint32_t frames, const MidiEvent* midievents, uint32_t nummidievents)
 {
-    for (int i=0;i<frames;i++) {
-        outputs[0][i]=0.0f;
-        outputs[1][i]=0.0f;
+    for (uint32_t i=0;i<nummidievents;i++) {
+        const auto& ev=midievents[i];
+
+        if ((ev.data[0]&0xf0)==0x90)
+            latent_energy+=ev.data[2]/127.0f;
+    }
+
+    float attack_rate=1000.0f / attack / getSampleRate();
+    float decay_rate =1000.0f / decay  / getSampleRate();
+
+    if (attack_rate>1) attack_rate=1.0f;
+    if (decay_rate >1) decay_rate =1.0f;
+
+    for (uint32_t i=0;i<frames;i++) {
+        energy-=energy*decay_rate;
+
+        float v=latent_energy*attack_rate;
+        latent_energy-=v;
+        energy+=v;
+
+        outputs[0][i]=ldexpf((rand()&0xfffff) - 0x80000, -19) * energy;
+        outputs[1][i]=ldexpf((rand()&0xfffff) - 0x80000, -19) * energy;
     }
 }
 

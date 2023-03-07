@@ -43,7 +43,10 @@ protected:
     void onCairoDisplay(const CairoGraphicsContext&) override;
 
 private:
+    class ExcitationPanel;
+
     ScopedPointer<TextLabel>        title;
+    ScopedPointer<ExcitationPanel>  excitationpanel;
 
     DISTRHO_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(DistrhoUIAmethyst)
 };
