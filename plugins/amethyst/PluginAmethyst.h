@@ -99,11 +99,70 @@ protected:
     // -------------------------------------------------------------------
 
 private:
+    class PinkNoise {
+        // Voss-McCartney algorithm
+
+        float   noise[8] {};
+        uint    index=0;
+
+        static float white()
+        {
+            return ldexpf((rand()&0xfffff)-0x80000, -21);
+        }
+
+    public:
+        float operator()()
+        {
+            if (index&1)
+                noise[0]=white();
+            else if (index&2)
+                noise[1]=white();
+            else if (index&4)
+                noise[2]=white();
+            else if (index&8)
+                noise[3]=white();
+            else if (index&16)
+                noise[4]=white();
+            else if (index&32)
+                noise[5]=white();
+            else if (index&64)
+                noise[6]=white();
+            else
+                noise[7]=white();
+            
+            index++;
+
+            float v=0.0f;
+            for (int i=0;i<8;i++)
+                v+=noise[i];
+
+            return v;
+        }
+    };
+
+
+    class BrownNoise {
+        // integrated white noise
+        float   sum=0.0f;
+
+    public:
+        float operator()()
+        {
+            sum*=0.999f;
+            sum+=ldexpf((rand()&0xfffff)-0x80000, -22);
+            return sum;
+        }
+    };
+
+
     float       attack=0.0f;
     float       decay=1000.0f;
 
     float       latent_energy=0.0f;
     float       energy=0.0f;
+
+    PinkNoise   pinknoisesrc[2];
+    BrownNoise  brownnoisesrc[2];
 
     DISTRHO_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(DistrhoPluginAmethyst)
 };

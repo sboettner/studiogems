@@ -119,8 +119,8 @@ void DistrhoPluginAmethyst::run(const float**, float** outputs, uint32_t frames,
         latent_energy-=v;
         energy+=v;
 
-        outputs[0][i]=ldexpf((rand()&0xfffff) - 0x80000, -19) * energy;
-        outputs[1][i]=ldexpf((rand()&0xfffff) - 0x80000, -19) * energy;
+        outputs[0][i]=pinknoisesrc[0]() * energy;
+        outputs[1][i]=pinknoisesrc[1]() * energy;
     }
 }
 
