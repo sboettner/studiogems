@@ -32,6 +32,14 @@ public:
     enum parameter_t {
         PARAM_ATTACK,
         PARAM_DECAY,
+        PARAM_COMB1_TUNING,
+        PARAM_COMB1_FEEDFORWARD,
+        PARAM_COMB1_FEEDBACK,
+        PARAM_COMB1_ENVELOPE,
+        PARAM_COMB2_TUNING,
+        PARAM_COMB2_FEEDFORWARD,
+        PARAM_COMB2_FEEDBACK,
+        PARAM_COMB2_ENVELOPE,
         NUM_PARAMETERS
     };
 
@@ -154,6 +162,14 @@ private:
         }
     };
 
+    struct CombParameters {
+        float   tuning=0.0f;
+        float   feedforward=0.0f;
+        float   feedback=0.0f;
+        float   envelope=0.0f;
+    };
+
+    class CombFilter;
 
     float       attack=0.0f;
     float       decay=1000.0f;
@@ -161,8 +177,14 @@ private:
     float       latent_energy=0.0f;
     float       energy=0.0f;
 
+    CombParameters  combparams1;
+    CombParameters  combparams2;
+
     PinkNoise   pinknoisesrc[2];
     BrownNoise  brownnoisesrc[2];
+
+    CombFilter* comb1[2] {};
+    CombFilter* comb2[2] {};
 
     DISTRHO_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(DistrhoPluginAmethyst)
 };

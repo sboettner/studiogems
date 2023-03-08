@@ -44,9 +44,12 @@ protected:
 
 private:
     class ExcitationPanel;
+    class CombFilterPanel;
 
     ScopedPointer<TextLabel>        title;
     ScopedPointer<ExcitationPanel>  excitationpanel;
+    ScopedPointer<CombFilterPanel>  combfilterpanel1;
+    ScopedPointer<CombFilterPanel>  combfilterpanel2;
 
     DISTRHO_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(DistrhoUIAmethyst)
 };

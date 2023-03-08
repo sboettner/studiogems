@@ -98,9 +98,106 @@ void DistrhoUIAmethyst::ExcitationPanel::knobValueChanged(SubWidget* widget, flo
 }
 
 
+class DistrhoUIAmethyst::CombFilterPanel:public RaisedPanel, KnobEventHandler::Callback {
+public:
+    CombFilterPanel(DistrhoUIAmethyst*, int x0, int y0, const char* label, int paramoffset);
+
+    void parameterChanged(uint32_t index, float value);
+
+protected:
+    void knobDragStarted(SubWidget* widget) override;
+    void knobDragFinished(SubWidget* widget) override;
+    void knobValueChanged(SubWidget* widget, float value) override;
+
+private:
+    DistrhoUIAmethyst*              mainwnd;
+    int                             paramoffset;
+
+    ScopedPointer<TextLabel>        header;
+    ScopedPointer<Knob>             knob_tuning;
+    ScopedPointer<Knob>             knob_feedforward;
+    ScopedPointer<Knob>             knob_feedback;
+    ScopedPointer<Knob>             knob_envelope;
+};
+
+
+DistrhoUIAmethyst::CombFilterPanel::CombFilterPanel(DistrhoUIAmethyst* mainwnd, int x0, int y0, const char* label, int paramoffset):
+    RaisedPanel(mainwnd, x0, y0, 544, 224),
+    mainwnd(mainwnd),
+    paramoffset(paramoffset)
+{
+    header=new TextLabel(this, x0+12, y0+12, 256, 32, 8);
+    header->set_color(Color(0.6f, 0.8f, 1.0f));
+    header->set_text(label);
+
+    knob_tuning=new Knob(this, Knob::Size::MEDIUM, x0+16, y0+48, 128, 160);
+    knob_tuning->set_name("Tuning");
+    knob_tuning->setRange(-12.0f, 36.0f);
+    knob_tuning->setId(DistrhoPluginAmethyst::PARAM_COMB1_TUNING+paramoffset);
+    knob_tuning->setCallback(this);
+
+    knob_feedforward=new Knob(this, Knob::Size::MEDIUM, x0+144, y0+48, 128, 160);
+    knob_feedforward->set_name("Feedforward");
+    knob_feedforward->setRange(-1.0f, 1.0f);
+    knob_feedforward->setId(DistrhoPluginAmethyst::PARAM_COMB1_FEEDFORWARD+paramoffset);
+    knob_feedforward->setCallback(this);
+
+    knob_feedback=new Knob(this, Knob::Size::MEDIUM, x0+272, y0+48, 128, 160);
+    knob_feedback->set_name("Feedback");
+    knob_feedback->setRange(-1.0f, 1.0f);
+    knob_feedback->setId(DistrhoPluginAmethyst::PARAM_COMB1_FEEDBACK+paramoffset);
+    knob_feedback->setCallback(this);
+
+    knob_envelope=new Knob(this, Knob::Size::MEDIUM, x0+400, y0+48, 128, 160);
+    knob_envelope->set_name("Envelope");
+    knob_envelope->setRange(0.0f, 1.0f);
+    knob_envelope->setId(DistrhoPluginAmethyst::PARAM_COMB1_ENVELOPE+paramoffset);
+    knob_envelope->setCallback(this);
+}
+
+
+void DistrhoUIAmethyst::CombFilterPanel::parameterChanged(uint32_t index, float value)
+{
+    switch (index-paramoffset) {
+    case DistrhoPluginAmethyst::PARAM_COMB1_TUNING:
+        knob_tuning->setValue(value);
+        break;
+    case DistrhoPluginAmethyst::PARAM_COMB1_FEEDFORWARD:
+        knob_feedforward->setValue(value);
+        break;
+    case DistrhoPluginAmethyst::PARAM_COMB1_FEEDBACK:
+        knob_feedback->setValue(value);
+        break;
+    case DistrhoPluginAmethyst::PARAM_COMB1_ENVELOPE:
+        knob_envelope->setValue(value);
+        break;
+    }
+}
+
+
+void DistrhoUIAmethyst::CombFilterPanel::knobDragStarted(SubWidget* widget)
+{
+    mainwnd->editParameter(widget->getId(), true);
+}
+
+
+void DistrhoUIAmethyst::CombFilterPanel::knobDragFinished(SubWidget* widget)
+{
+    mainwnd->editParameter(widget->getId(), false);
+}
+
+
+void DistrhoUIAmethyst::CombFilterPanel::knobValueChanged(SubWidget* widget, float value)
+{
+    mainwnd->setParameterValue(widget->getId(), value);
+
+    parameterChanged(widget->getId(), value);
+}
+
+
 DistrhoUIAmethyst::DistrhoUIAmethyst()
 {
-    setSize(1696, 784);
+    setSize(1536, 784);
 
     TextLayout::register_font_file("/home/stb/fonts/orbitron-master/Orbitron Black.otf");
     TextLayout::register_font_file("/home/stb/fonts/orbitron-master/Orbitron Bold.otf");
@@ -112,6 +209,8 @@ DistrhoUIAmethyst::DistrhoUIAmethyst()
     title->set_text("Amethyst Percussion");
 
     excitationpanel=new ExcitationPanel(this, 16, 64);
+    combfilterpanel1=new CombFilterPanel(this, 976, 64, "Comb Filter 1", 0);
+    combfilterpanel2=new CombFilterPanel(this, 976, 304, "Comb Filter 2", 4);
 }
 
 
@@ -123,6 +222,8 @@ DistrhoUIAmethyst::~DistrhoUIAmethyst()
 void DistrhoUIAmethyst::parameterChanged(uint32_t index, float value)
 {
     excitationpanel->parameterChanged(index, value);
+    combfilterpanel1->parameterChanged(index, value);
+    combfilterpanel2->parameterChanged(index, value);
 }
 
 

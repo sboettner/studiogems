@@ -19,6 +19,58 @@
 
 START_NAMESPACE_DISTRHO
 
+class DistrhoPluginAmethyst::CombFilter {
+    const static uint bufsize=4096;
+    const static uint bufmask=4095;
+
+    const CombParameters& params;
+
+    float*  ringbuffer;
+    uint    wrptr=0;
+
+public:
+    CombFilter(const CombParameters&);
+    ~CombFilter();
+
+    float operator()(float sample, float env);
+};
+
+
+DistrhoPluginAmethyst::CombFilter::CombFilter(const CombParameters& params):params(params)
+{
+    ringbuffer=new float[bufsize];
+
+    for (uint i=0;i<bufsize;i++)
+        ringbuffer[i]=0.0f;
+}
+
+
+DistrhoPluginAmethyst::CombFilter::~CombFilter()
+{
+    delete[] ringbuffer;
+}
+
+
+float DistrhoPluginAmethyst::CombFilter::operator()(float v, float env)
+{
+    float freq=440.0f * expf(params.tuning*M_LN2/12.0f);
+    uint delay=lrintf(48000 / freq);
+    
+    env=powf(env, params.envelope);
+    if (env>1) env=1.0f;
+
+    float w=ringbuffer[(wrptr-delay)&bufmask]*0.5f + ringbuffer[(wrptr-delay-1)&bufmask]*0.25f + ringbuffer[(wrptr-delay+1)&bufmask]*0.25f;
+    v+=w*params.feedback*env;
+
+    ringbuffer[wrptr++]=v;
+    wrptr&=bufmask;
+
+    v+=w*params.feedforward*env;
+
+    return v;
+}
+
+
 DistrhoPluginAmethyst::DistrhoPluginAmethyst():Plugin(NUM_PARAMETERS, 0, 0)
 {
 }
@@ -57,6 +109,70 @@ void DistrhoPluginAmethyst::initParameter(uint32_t index, Parameter& parameter)
         parameter.ranges.min = 0.0f;
         parameter.ranges.max = 1000.0f;
         break;
+    case PARAM_COMB1_TUNING:
+        parameter.hints      = kParameterIsAutomatable;
+        parameter.name       = "Comb 1 Tuning";
+        parameter.symbol     = "combtuning1";
+        parameter.ranges.def = 0.0f;
+        parameter.ranges.min = -12.0f;
+        parameter.ranges.max = 36.0f;
+        break;
+    case PARAM_COMB1_FEEDFORWARD:
+        parameter.hints      = kParameterIsAutomatable;
+        parameter.name       = "Comb 1 Feedforward";
+        parameter.symbol     = "combfwd1";
+        parameter.ranges.def = 0.0f;
+        parameter.ranges.min = -1.0f;
+        parameter.ranges.max = 1.0f;
+        break;
+    case PARAM_COMB1_FEEDBACK:
+        parameter.hints      = kParameterIsAutomatable;
+        parameter.name       = "Comb 1 Feedback";
+        parameter.symbol     = "combback1";
+        parameter.ranges.def = 0.0f;
+        parameter.ranges.min = -1.0f;
+        parameter.ranges.max = 1.0f;
+        break;
+    case PARAM_COMB1_ENVELOPE:
+        parameter.hints      = kParameterIsAutomatable;
+        parameter.name       = "Comb 1 Envelope";
+        parameter.symbol     = "combenv1";
+        parameter.ranges.def = 0.0f;
+        parameter.ranges.min = 0.0f;
+        parameter.ranges.max = 4.0f;
+        break;
+    case PARAM_COMB2_TUNING:
+        parameter.hints      = kParameterIsAutomatable;
+        parameter.name       = "Comb 2 Tuning";
+        parameter.symbol     = "combtuning2";
+        parameter.ranges.def = 0.0f;
+        parameter.ranges.min = -12.0f;
+        parameter.ranges.max = 36.0f;
+        break;
+    case PARAM_COMB2_FEEDFORWARD:
+        parameter.hints      = kParameterIsAutomatable;
+        parameter.name       = "Comb 2 Feedforward";
+        parameter.symbol     = "combfwd2";
+        parameter.ranges.def = 0.0f;
+        parameter.ranges.min = -1.0f;
+        parameter.ranges.max = 1.0f;
+        break;
+    case PARAM_COMB2_FEEDBACK:
+        parameter.hints      = kParameterIsAutomatable;
+        parameter.name       = "Comb 2 Feedback";
+        parameter.symbol     = "combback2";
+        parameter.ranges.def = 0.0f;
+        parameter.ranges.min = -1.0f;
+        parameter.ranges.max = 1.0f;
+        break;
+    case PARAM_COMB2_ENVELOPE:
+        parameter.hints      = kParameterIsAutomatable;
+        parameter.name       = "Comb 2 Envelope";
+        parameter.symbol     = "combenv2";
+        parameter.ranges.def = 0.0f;
+        parameter.ranges.min = 0.0f;
+        parameter.ranges.max = 4.0f;
+        break;
     }
 }
 
@@ -68,6 +184,22 @@ float DistrhoPluginAmethyst::getParameterValue(uint32_t index) const
         return attack;
     case PARAM_DECAY:
         return decay;
+    case PARAM_COMB1_TUNING:
+        return combparams1.tuning;
+    case PARAM_COMB1_FEEDFORWARD:
+        return combparams1.feedforward;
+    case PARAM_COMB1_FEEDBACK:
+        return combparams1.feedback;
+    case PARAM_COMB1_ENVELOPE:
+        return combparams1.envelope;
+    case PARAM_COMB2_TUNING:
+        return combparams2.tuning;
+    case PARAM_COMB2_FEEDFORWARD:
+        return combparams2.feedforward;
+    case PARAM_COMB2_FEEDBACK:
+        return combparams2.feedback;
+    case PARAM_COMB2_ENVELOPE:
+        return combparams2.envelope;
     default:
         return 0.0f;
     }
@@ -83,17 +215,51 @@ void DistrhoPluginAmethyst::setParameterValue(uint32_t index, float value)
     case PARAM_DECAY:
         decay=value;
         break;
+    case PARAM_COMB1_TUNING:
+        combparams1.tuning=value;
+        break;
+    case PARAM_COMB1_FEEDFORWARD:
+        combparams1.feedforward=value;
+        break;
+    case PARAM_COMB1_FEEDBACK:
+        combparams1.feedback=value;
+        break;
+    case PARAM_COMB1_ENVELOPE:
+        combparams1.envelope=value;
+        break;
+    case PARAM_COMB2_TUNING:
+        combparams2.tuning=value;
+        break;
+    case PARAM_COMB2_FEEDFORWARD:
+        combparams2.feedforward=value;
+        break;
+    case PARAM_COMB2_FEEDBACK:
+        combparams2.feedback=value;
+        break;
+    case PARAM_COMB2_ENVELOPE:
+        combparams2.envelope=value;
+        break;
     }
 }
 
 
 void DistrhoPluginAmethyst::activate()
 {
+    comb1[0]=new CombFilter(combparams1);
+    comb1[1]=new CombFilter(combparams1);
+    comb2[0]=new CombFilter(combparams2);
+    comb2[1]=new CombFilter(combparams2);
 }
 
 
 void DistrhoPluginAmethyst::deactivate()
 {
+    delete comb1[0];
+    delete comb1[1];
+    delete comb2[0];
+    delete comb2[1];
+
+    comb1[0]=comb1[1]=comb2[0]=comb2[1]=nullptr;
 }
 
 
@@ -119,8 +285,8 @@ void DistrhoPluginAmethyst::run(const float**, float** outputs, uint32_t frames,
         latent_energy-=v;
         energy+=v;
 
-        outputs[0][i]=pinknoisesrc[0]() * energy;
-        outputs[1][i]=pinknoisesrc[1]() * energy;
+        outputs[0][i]=(*comb2[0])((*comb1[0])(pinknoisesrc[0]() * energy, energy), energy);
+        outputs[1][i]=(*comb2[1])((*comb1[1])(pinknoisesrc[1]() * energy, energy), energy);
     }
 }
 
