@@ -32,6 +32,10 @@ public:
     enum parameter_t {
         PARAM_ATTACK,
         PARAM_DECAY,
+        PARAM_BAND1_AMOUNT,
+        PARAM_BAND1_DECAY,
+        PARAM_BAND1_FREQ,
+        PARAM_BAND1_Q,
         PARAM_COMB1_TUNING,
         PARAM_COMB1_FEEDFORWARD,
         PARAM_COMB1_FEEDBACK,

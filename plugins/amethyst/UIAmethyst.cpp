@@ -15,7 +15,10 @@
  * For a full copy of the GNU General Public License see the LICENSE file.
  */
 
+#include <complex>
+#include <functional>
 #include <raisedpanel.h>
+#include <graphdisplay.h>
 #include "PluginAmethyst.h"
 #include "UIAmethyst.h"
 
@@ -91,6 +94,193 @@ void DistrhoUIAmethyst::ExcitationPanel::knobDragFinished(SubWidget* widget)
 
 
 void DistrhoUIAmethyst::ExcitationPanel::knobValueChanged(SubWidget* widget, float value)
+{
+    mainwnd->setParameterValue(widget->getId(), value);
+
+    parameterChanged(widget->getId(), value);
+}
+
+
+class DistrhoUIAmethyst::BandFilterPanel:public RaisedPanel, KnobEventHandler::Callback {
+public:
+    BandFilterPanel(DistrhoUIAmethyst*, int x0, int y0);
+
+    void parameterChanged(uint32_t index, float value);
+
+protected:
+    void knobDragStarted(SubWidget* widget) override;
+    void knobDragFinished(SubWidget* widget) override;
+    void knobValueChanged(SubWidget* widget, float value) override;
+
+private:
+    class BandFilterView;
+
+    DistrhoUIAmethyst*              mainwnd;
+
+    ScopedPointer<TextLabel>        header;
+
+    ScopedPointer<Knob>             knob_amount1;
+    ScopedPointer<Knob>             knob_decay1;
+    ScopedPointer<Knob>             knob_freq1;
+    ScopedPointer<Knob>             knob_Q1;
+
+    ScopedPointer<BandFilterView>   filterview;
+};
+
+
+class DistrhoUIAmethyst::BandFilterPanel::BandFilterView:public GraphDisplay {
+public:
+    BandFilterView(Widget* parent, uint x0, uint y0);
+
+    void set_amount(int, float);
+    void set_decay(int, float);
+    void set_freq(int, float);
+    void set_Q(int, float);
+
+protected:
+    void draw_graph(cairo_t*) override;
+
+private:
+    float   amount[1];
+    float   decay[1];
+    float   freq[1];
+    float   Q[1];
+};
+
+
+DistrhoUIAmethyst::BandFilterPanel::BandFilterView::BandFilterView(Widget* parent, uint x0, uint y0):
+    GraphDisplay(parent, x0, y0, 736, 128)
+{
+    for (int i=0;i<1;i++) {
+        amount[i]=1.0f;
+        decay[i]=0.0f;
+        freq[i]=1000.0f;
+        Q[i]=1.0f;
+    }
+}
+
+
+void DistrhoUIAmethyst::BandFilterPanel::BandFilterView::set_amount(int i, float v)
+{
+    amount[i]=v;
+    repaint();
+}
+
+
+void DistrhoUIAmethyst::BandFilterPanel::BandFilterView::set_decay(int i, float v)
+{
+    decay[i]=v;
+    repaint();
+}
+
+
+void DistrhoUIAmethyst::BandFilterPanel::BandFilterView::set_freq(int i, float v)
+{
+    freq[i]=v;
+    repaint();
+}
+
+
+void DistrhoUIAmethyst::BandFilterPanel::BandFilterView::set_Q(int i, float v)
+{
+    Q[i]=v;
+    repaint();
+}
+
+
+void DistrhoUIAmethyst::BandFilterPanel::BandFilterView::draw_graph(cairo_t* cr)
+{
+    cairo_set_operator(cr, CAIRO_OPERATOR_SOURCE);
+
+    cairo_set_line_width(cr, 3.0);
+    cairo_set_line_cap(cr, CAIRO_LINE_CAP_ROUND);
+
+    cairo_set_source_rgb(cr, 0.4, 0.7, 1.0);
+    plot(cr, -1.0f, 0.0f, 0.0f, 2.0f, [this](float x) {
+        auto z=std::polar(1.0f, powf(1000.0f, x)*(float) M_PI);
+
+        std::complex<float> y(1.0f, 0.0f);
+
+        for (int i=0;i<1;i++) {
+            float w=freq[i]*M_PI/24000;
+            float a=0.5f*sinf(w)/Q[i];
+
+            y+=a * amount[i] * (z*z-1.0f) / (z*z*(1.0f+a) - 2.0f*z*cosf(w) + 1.0f-a);
+        }
+
+        return abs(y);
+    }, 128);
+}
+
+
+DistrhoUIAmethyst::BandFilterPanel::BandFilterPanel(DistrhoUIAmethyst* mainwnd, int x0, int y0):
+    RaisedPanel(mainwnd, x0, y0, 768, 448),
+    mainwnd(mainwnd)
+{
+    header=new TextLabel(this, x0+12, y0+12, 256, 32, 8);
+    header->set_color(Color(0.6f, 0.8f, 1.0f));
+    header->set_text("Band Filters");
+
+    knob_amount1=new Knob(this, Knob::Size::TINY_PLAIN, x0+16, y0+48, 64, 64);
+    knob_amount1->setRange(0.0f, 20.0f);
+    knob_amount1->setId(DistrhoPluginAmethyst::PARAM_BAND1_AMOUNT);
+    knob_amount1->setCallback(this);
+
+    knob_decay1=new Knob(this, Knob::Size::TINY_PLAIN, x0+16, y0+112, 64, 64);
+    knob_decay1->setRange(0.0f, 2.0f);
+    knob_decay1->setId(DistrhoPluginAmethyst::PARAM_BAND1_DECAY);
+    knob_decay1->setCallback(this);
+
+    knob_freq1=new Knob(this, Knob::Size::TINY_PLAIN, x0+16, y0+176, 64, 64);
+    knob_freq1->setRange(20.0f, 20000.0f);
+    knob_freq1->setId(DistrhoPluginAmethyst::PARAM_BAND1_FREQ);
+    knob_freq1->setCallback(this);
+
+    knob_Q1=new Knob(this, Knob::Size::TINY_PLAIN, x0+16, y0+240, 64, 64);
+    knob_Q1->setRange(0.5f, 10.0f);
+    knob_Q1->setId(DistrhoPluginAmethyst::PARAM_BAND1_Q);
+    knob_Q1->setCallback(this);
+
+    filterview=new BandFilterView(this, x0+16, y0+304);
+}
+
+
+void DistrhoUIAmethyst::BandFilterPanel::parameterChanged(uint32_t index, float value)
+{
+    switch (index) {
+    case DistrhoPluginAmethyst::PARAM_BAND1_AMOUNT:
+        knob_amount1->setValue(value);
+        filterview->set_amount(0, value);
+        break;
+    case DistrhoPluginAmethyst::PARAM_BAND1_DECAY:
+        knob_decay1->setValue(value);
+        filterview->set_decay(0, value);
+        break;
+    case DistrhoPluginAmethyst::PARAM_BAND1_FREQ:
+        knob_freq1->setValue(value);
+        filterview->set_freq(0, value);
+        break;
+    case DistrhoPluginAmethyst::PARAM_BAND1_Q:
+        knob_Q1->setValue(value);
+        filterview->set_Q(0, value);
+        break;
+    }
+}
+
+
+void DistrhoUIAmethyst::BandFilterPanel::knobDragStarted(SubWidget* widget)
+{
+    mainwnd->editParameter(widget->getId(), true);
+}
+
+
+void DistrhoUIAmethyst::BandFilterPanel::knobDragFinished(SubWidget* widget)
+{
+    mainwnd->editParameter(widget->getId(), false);
+}
+
+
+void DistrhoUIAmethyst::BandFilterPanel::knobValueChanged(SubWidget* widget, float value)
 {
     mainwnd->setParameterValue(widget->getId(), value);
 
@@ -209,6 +399,7 @@ DistrhoUIAmethyst::DistrhoUIAmethyst()
     title->set_text("Amethyst Percussion");
 
     excitationpanel=new ExcitationPanel(this, 16, 64);
+    bandfilterpanel=new BandFilterPanel(this, 16, 304);
     combfilterpanel1=new CombFilterPanel(this, 976, 64, "Comb Filter 1", 0);
     combfilterpanel2=new CombFilterPanel(this, 976, 304, "Comb Filter 2", 4);
 }

@@ -44,10 +44,12 @@ protected:
 
 private:
     class ExcitationPanel;
+    class BandFilterPanel;
     class CombFilterPanel;
 
     ScopedPointer<TextLabel>        title;
     ScopedPointer<ExcitationPanel>  excitationpanel;
+    ScopedPointer<BandFilterPanel>  bandfilterpanel;
     ScopedPointer<CombFilterPanel>  combfilterpanel1;
     ScopedPointer<CombFilterPanel>  combfilterpanel2;
 
