@@ -37,6 +37,8 @@ Knob::Knob(Widget* parent, Size size, uint x0, uint y0, uint width, uint height)
     color=Color(0.2f, 1.0f, 0.5f);
 
     switch (size) {
+    case Size::TINY_PLAIN:
+        showlabels=false;
     case Size::TINY:
         scale=24.0;
         header_layout.set_font("orbitron", 12, PANGO_WEIGHT_HEAVY);
@@ -206,15 +208,17 @@ void Knob::onCairoDisplay(const CairoGraphicsContext& ctx)
 
     cairo_t* crimg=glow.get_context();
 
-    cairo_set_source_rgb(crimg, 0.6, 0.8, 1.0);
-    cairo_move_to(crimg, 0, 8);
-    header_layout.show(crimg);
-    cairo_new_path(crimg);
+    if (showlabels) {
+        cairo_set_source_rgb(crimg, 0.6, 0.8, 1.0);
+        cairo_move_to(crimg, 0, 8);
+        header_layout.show(crimg);
+        cairo_new_path(crimg);
 
-    cairo_move_to(crimg, 0, getHeight()-20);
-    value_layout.set_textf("%.2f", getValue());
-    value_layout.show(crimg);
-    cairo_new_path(crimg);
+        cairo_move_to(crimg, 0, getHeight()-20);
+        value_layout.set_textf("%.2f", getValue());
+        value_layout.show(crimg);
+        cairo_new_path(crimg);
+    }
 
     //cairo_set_source_rgb(crimg, 0.2, 1.0, 0.5);
     cairo_set_source_color(crimg, color);

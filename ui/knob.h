@@ -29,6 +29,7 @@ USE_NAMESPACE_DISTRHO
 class Knob:public CairoSubWidget, public KnobEventHandler, LineEdit::Callback {
 public:
     enum class Size {
+        TINY_PLAIN,
         TINY,
         SMALL,
         MEDIUM,
@@ -55,6 +56,7 @@ protected:
 
 private:
     double          scale;
+    bool            showlabels=true;
 
     Color           color;
 
