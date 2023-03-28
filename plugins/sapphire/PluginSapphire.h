@@ -26,12 +26,12 @@ START_NAMESPACE_DISTRHO
 
 // -----------------------------------------------------------------------
 
-struct ExcitationParameters {
+struct EnvelopeParameters {
     float   attack=1.0f;
     float   decay=100.0f;
     float   sustain=1.0f;
     float   release=10.0f;
-    float   scaling=0.0f;
+    float   keyfollow=0.0f;
 };
 
 
@@ -109,11 +109,16 @@ public:
         PARAM_HIGHER_FACTOR,
         PARAM_BANDWIDTH,
         PARAM_BANDWIDTH_EXPONENT,
-        PARAM_EXCITATION_ATTACK,
-        PARAM_EXCITATION_DECAY,
-        PARAM_EXCITATION_SUSTAIN,
-        PARAM_EXCITATION_RELEASE,
-        PARAM_EXCITATION_SCALING,
+        PARAM_AMPENV_ATTACK,
+        PARAM_AMPENV_DECAY,
+        PARAM_AMPENV_SUSTAIN,
+        PARAM_AMPENV_RELEASE,
+        PARAM_AMPENV_KEYFOLLOW,
+        PARAM_FLTENV_ATTACK,
+        PARAM_FLTENV_DECAY,
+        PARAM_FLTENV_SUSTAIN,
+        PARAM_FLTENV_RELEASE,
+        PARAM_FLTENV_KEYFOLLOW,
         PARAM_LFO_TYPE,
         PARAM_LFO_FREQUENCY,
         PARAM_LFO_SCALING,
@@ -222,7 +227,8 @@ private:
     float       bandwidth=10.0f;            // bandwidth in cents for the fundamental
     float       bandwidth_exponent=1.0f;
 
-    ExcitationParameters    excitation;
+    EnvelopeParameters      amplitude_envelope;
+    EnvelopeParameters      filter_envelope;
     LFOParameters           lfo;
     FilterParameters        filter;
 

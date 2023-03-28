@@ -413,9 +413,9 @@ void DistrhoUISapphire::SpectrumPanel::value_changed(SubWidget* widget, int valu
 }
 
 
-class DistrhoUISapphire::ExcitationPanel:public RaisedPanel, KnobEventHandler::Callback {
+class DistrhoUISapphire::EnvelopePanel:public RaisedPanel, KnobEventHandler::Callback {
 public:
-    ExcitationPanel(DistrhoUISapphire*, int x0, int y0);
+    EnvelopePanel(DistrhoUISapphire*, int x0, int y0, const char* label, uint32_t parambase);
 
     void parameterChanged(uint32_t index, float value);
 
@@ -427,90 +427,93 @@ protected:
 private:
     DistrhoUISapphire*              mainwnd;
 
+    uint32_t                        parambase;
+
     ScopedPointer<TextLabel>        header;
     ScopedPointer<Knob>             knob_attack;
-    ScopedPointer<Knob>             knob_sustain;
     ScopedPointer<Knob>             knob_decay;
+    ScopedPointer<Knob>             knob_sustain;
     ScopedPointer<Knob>             knob_release;
-    ScopedPointer<Knob>             knob_scaling;
+    ScopedPointer<Knob>             knob_keyfollow;
 };
 
 
-DistrhoUISapphire::ExcitationPanel::ExcitationPanel(DistrhoUISapphire* mainwnd, int x0, int y0):
+DistrhoUISapphire::EnvelopePanel::EnvelopePanel(DistrhoUISapphire* mainwnd, int x0, int y0, const char* label, uint32_t parambase):
     RaisedPanel(mainwnd, x0, y0, 512, 176),
-    mainwnd(mainwnd)
+    mainwnd(mainwnd),
+    parambase(parambase)
 {
     header=new TextLabel(this, x0+12, y0+12, 480, 32, 8);
     header->set_color(Color(0.6f, 0.8f, 1.0f));
-    header->set_text("Envelope");
+    header->set_text(label);
 
     knob_attack=new Knob(this, Knob::Size::SMALL, x0+16, y0+48, 96, 120);
     knob_attack->set_name("Attack");
     knob_attack->setRange(0.1f, 1000.0f);
-    knob_attack->setId(DistrhoPluginSapphire::PARAM_EXCITATION_ATTACK);
+    knob_attack->setId(parambase);
     knob_attack->setCallback(this);
 
-    knob_sustain=new Knob(this, Knob::Size::SMALL, x0+112, y0+48, 96, 120);
-    knob_sustain->set_name("Sustain");
-    knob_sustain->setRange(0.0f, 1.0f);
-    knob_sustain->setId(DistrhoPluginSapphire::PARAM_EXCITATION_SUSTAIN);
-    knob_sustain->setCallback(this);
-
-    knob_decay=new Knob(this, Knob::Size::SMALL, x0+208, y0+48, 96, 120);
+    knob_decay=new Knob(this, Knob::Size::SMALL, x0+112, y0+48, 96, 120);
     knob_decay->set_name("Decay");
     knob_decay->setRange(0.1f, 1000.0f);
-    knob_decay->setId(DistrhoPluginSapphire::PARAM_EXCITATION_DECAY);
+    knob_decay->setId(parambase+1);
     knob_decay->setCallback(this);
+
+    knob_sustain=new Knob(this, Knob::Size::SMALL, x0+208, y0+48, 96, 120);
+    knob_sustain->set_name("Sustain");
+    knob_sustain->setRange(0.0f, 1.0f);
+    knob_sustain->setId(parambase+2);
+    knob_sustain->setCallback(this);
 
     knob_release=new Knob(this, Knob::Size::SMALL, x0+304, y0+48, 96, 120);
     knob_release->set_name("Release");
     knob_release->setRange(0.1f, 1000.0f);
-    knob_release->setId(DistrhoPluginSapphire::PARAM_EXCITATION_RELEASE);
+    knob_release->setId(parambase+3);
     knob_release->setCallback(this);
 
-    knob_scaling=new Knob(this, Knob::Size::SMALL, x0+400, y0+48, 96, 120);
-    knob_scaling->set_name("Scaling");
-    knob_scaling->setRange(0.0f, 1.0f);
-    knob_scaling->setId(DistrhoPluginSapphire::PARAM_EXCITATION_SCALING);
-    knob_scaling->setCallback(this);
+    knob_keyfollow=new Knob(this, Knob::Size::SMALL, x0+400, y0+48, 96, 120);
+    knob_keyfollow->set_name("Key Follow");
+    knob_keyfollow->setRange(0.0f, 1.0f);
+    knob_keyfollow->setId(parambase+4);
+    knob_keyfollow->setCallback(this);
 }
 
 
-void DistrhoUISapphire::ExcitationPanel::parameterChanged(uint32_t index, float value)
+void DistrhoUISapphire::EnvelopePanel::parameterChanged(uint32_t index, float value)
 {
-    switch (index) {
-    case DistrhoPluginSapphire::PARAM_EXCITATION_ATTACK:
+    switch (index - parambase) {
+    case 0:
         knob_attack->setValue(value);
         break;
-    case DistrhoPluginSapphire::PARAM_EXCITATION_SUSTAIN:
-        knob_sustain->setValue(value);
-        break;
-    case DistrhoPluginSapphire::PARAM_EXCITATION_DECAY:
+    case 1:
         knob_decay->setValue(value);
         break;
-    case DistrhoPluginSapphire::PARAM_EXCITATION_RELEASE:
+    case 2:
+        knob_sustain->setValue(value);
+        break;
+    case 3:
         knob_release->setValue(value);
         break;
-    case DistrhoPluginSapphire::PARAM_EXCITATION_SCALING:
-        knob_scaling->setValue(value);
+    case 4:
+        knob_keyfollow->setValue(value);
         break;
     }
 }
 
 
-void DistrhoUISapphire::ExcitationPanel::knobDragStarted(SubWidget* widget)
+void DistrhoUISapphire::EnvelopePanel::knobDragStarted(SubWidget* widget)
 {
     mainwnd->editParameter(widget->getId(), true);
 }
 
 
-void DistrhoUISapphire::ExcitationPanel::knobDragFinished(SubWidget* widget)
+void DistrhoUISapphire::EnvelopePanel::knobDragFinished(SubWidget* widget)
 {
     mainwnd->editParameter(widget->getId(), false);
 }
 
 
-void DistrhoUISapphire::ExcitationPanel::knobValueChanged(SubWidget* widget, float value)
+void DistrhoUISapphire::EnvelopePanel::knobValueChanged(SubWidget* widget, float value)
 {
     mainwnd->setParameterValue(widget->getId(), value);
 }
@@ -825,8 +828,8 @@ DistrhoUISapphire::DistrhoUISapphire()
     title->set_text("Sapphire Pad Synth");
 
     spectrumpanel=new SpectrumPanel(this, 16, 64);
-    excitationpanel=new ExcitationPanel(this, 16, 592);
-    lfopanel=new LFOPanel(this, 544, 592);
+    ampenvpanel=new EnvelopePanel(this, 16, 592, "Amp. Envelope", DistrhoPluginSapphire::PARAM_AMPENV_ATTACK);
+    filterenvpanel=new EnvelopePanel(this, 544, 592, "Filter Envelope", DistrhoPluginSapphire::PARAM_FLTENV_ATTACK);
     filterpanel=new FilterPanel(this, 1072, 592);
 }
 
@@ -839,8 +842,8 @@ DistrhoUISapphire::~DistrhoUISapphire()
 void DistrhoUISapphire::parameterChanged(uint32_t index, float value)
 {
     spectrumpanel->parameterChanged(index, value);
-    excitationpanel->parameterChanged(index, value);
-    lfopanel->parameterChanged(index, value);
+    ampenvpanel->parameterChanged(index, value);
+    filterenvpanel->parameterChanged(index, value);
     filterpanel->parameterChanged(index, value);
 }
 

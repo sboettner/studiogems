@@ -50,14 +50,15 @@ protected:
 
 private:
     class SpectrumPanel;
-    class ExcitationPanel;
+    class EnvelopePanel;
     class LFOPanel;
     class LFODisplay;
     class FilterPanel;
 
     ScopedPointer<TextLabel>        title;
     ScopedPointer<SpectrumPanel>    spectrumpanel;
-    ScopedPointer<ExcitationPanel>  excitationpanel;
+    ScopedPointer<EnvelopePanel>    ampenvpanel;
+    ScopedPointer<EnvelopePanel>    filterenvpanel;
     ScopedPointer<LFOPanel>         lfopanel;
     ScopedPointer<FilterPanel>      filterpanel;
 

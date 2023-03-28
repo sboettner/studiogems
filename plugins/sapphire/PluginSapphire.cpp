@@ -76,9 +76,9 @@ void Downsampler::write_output(float* dst, uint size)
 }
 
 
-class Excitation {
+class Envelope {
 public:
-    Excitation(const ExcitationParameters&, int note, float velocity, float delay, float samplerate);
+    Envelope(const EnvelopeParameters&, int note, float velocity, float delay, float samplerate);
 
     void note_off(float delay);
 
@@ -103,9 +103,9 @@ private:
 };
 
 
-Excitation::Excitation(const ExcitationParameters& params, int note, float velocity, float delay, float samplerate)
+Envelope::Envelope(const EnvelopeParameters& params, int note, float velocity, float delay, float samplerate)
 {
-    const float scale=expf(params.scaling*(60-note)*M_LN2/12) * samplerate;
+    const float scale=expf(params.keyfollow*(60-note)*M_LN2/12) * samplerate;
 
     latent_energy=velocity;
 
@@ -116,7 +116,7 @@ Excitation::Excitation(const ExcitationParameters& params, int note, float veloc
 }
 
 
-void Excitation::note_off(float delay)
+void Envelope::note_off(float delay)
 {
     // FIXME: properly implement delay
 
@@ -126,7 +126,7 @@ void Excitation::note_off(float delay)
 }
 
 
-void Excitation::produce(float* out, int count)
+void Envelope::produce(float* out, int count)
 {
     // FIXME: properly implement delay
 
@@ -312,7 +312,8 @@ struct DistrhoPluginSapphire::Voice {
 
     LowpassLadderFilter lp0, lp1;
 
-    Excitation          excitation;
+    Envelope            amplitude_envelope;
+    Envelope            filter_envelope;
     LFO                 lfo;
 
     ExcitationUpsampler excitation_upsampler;
@@ -322,7 +323,8 @@ struct DistrhoPluginSapphire::Voice {
         plugin(plugin),
         note(note),
         samplerate(samplerate),
-        excitation(plugin.excitation, note, velocity, delay/32, samplerate/32),
+        amplitude_envelope(plugin.amplitude_envelope, note, velocity, delay/32, samplerate/32),
+        filter_envelope(plugin.filter_envelope, note, velocity, delay/32, samplerate/32),
         lfo(plugin.lfo, note, delay/32, samplerate/32),
         excitation_upsampler(32),
         cutoff_upsampler(32)
@@ -334,12 +336,13 @@ struct DistrhoPluginSapphire::Voice {
 
     void note_off()
     {
-        excitation.note_off(0.0f);
+        amplitude_envelope.note_off(0.0f);
+        filter_envelope.note_off(0.0f);
     }
 
     bool terminated() const
     {
-        return excitation.terminated();
+        return amplitude_envelope.terminated();
     }
 
     void produce(Waveform* waveform, float* out0, float* out1, int count);
@@ -354,7 +357,7 @@ void DistrhoPluginSapphire::Voice::produce(Waveform* waveform, float* out0, floa
     float* cutoffbuf=(float*) alloca(count*sizeof(float)/16);
     float* cutoffbuf_upsampled=(float*) alloca(count*sizeof(float));
 
-    excitation.produce(excbuf, count/32);
+    amplitude_envelope.produce(excbuf, count/32);
     lfo.produce(lfobuf, count/32);
 
     const float basefreq=440.0f * expf((note-69)*M_LN2/12) / samplerate;
@@ -510,42 +513,82 @@ void DistrhoPluginSapphire::initParameter(uint32_t index, Parameter& parameter)
         parameter.ranges.min = 0.0f;
         parameter.ranges.max = 1.0f;
         break;
-    case PARAM_EXCITATION_ATTACK:
+    case PARAM_AMPENV_ATTACK:
         parameter.hints      = kParameterIsLogarithmic;
-        parameter.name       = "Attack";
-        parameter.symbol     = "attack";
+        parameter.name       = "Amp. Attack";
+        parameter.symbol     = "ampattack";
         parameter.ranges.def = 1.0f;
         parameter.ranges.min = 0.1f;
         parameter.ranges.max = 1000.0f;
         break;
-    case PARAM_EXCITATION_DECAY:
+    case PARAM_AMPENV_DECAY:
         parameter.hints      = kParameterIsLogarithmic;
-        parameter.name       = "Decay";
-        parameter.symbol     = "decay";
+        parameter.name       = "Amp. Decay";
+        parameter.symbol     = "ampdecay";
         parameter.ranges.def = 1.0f;
         parameter.ranges.min = 0.1f;
         parameter.ranges.max = 1000.0f;
         break;
-    case PARAM_EXCITATION_SUSTAIN:
+    case PARAM_AMPENV_SUSTAIN:
         parameter.hints      = 0;
-        parameter.name       = "Sustain";
-        parameter.symbol     = "sustain";
+        parameter.name       = "Amp. Sustain";
+        parameter.symbol     = "ampsustain";
         parameter.ranges.def = 1.0f;
         parameter.ranges.min = 0.0f;
         parameter.ranges.max = 1.0f;
         break;
-    case PARAM_EXCITATION_RELEASE:
+    case PARAM_AMPENV_RELEASE:
         parameter.hints      = kParameterIsLogarithmic;
-        parameter.name       = "Release";
-        parameter.symbol     = "release";
+        parameter.name       = "Amp. Release";
+        parameter.symbol     = "amprelease";
         parameter.ranges.def = 1.0f;
         parameter.ranges.min = 0.1f;
         parameter.ranges.max = 1000.0f;
         break;
-    case PARAM_EXCITATION_SCALING:
+    case PARAM_AMPENV_KEYFOLLOW:
         parameter.hints      = 0;
-        parameter.name       = "Env. Scaling";
-        parameter.symbol     = "envscaling";
+        parameter.name       = "Amp. Key-follow";
+        parameter.symbol     = "ampkeyfollow";
+        parameter.ranges.def = 0.0f;
+        parameter.ranges.min = 0.0f;
+        parameter.ranges.max = 1.0f;
+        break;
+    case PARAM_FLTENV_ATTACK:
+        parameter.hints      = kParameterIsLogarithmic;
+        parameter.name       = "Filter Attack";
+        parameter.symbol     = "fltattack";
+        parameter.ranges.def = 1.0f;
+        parameter.ranges.min = 0.1f;
+        parameter.ranges.max = 1000.0f;
+        break;
+    case PARAM_FLTENV_DECAY:
+        parameter.hints      = kParameterIsLogarithmic;
+        parameter.name       = "Filter Decay";
+        parameter.symbol     = "fltdecay";
+        parameter.ranges.def = 1.0f;
+        parameter.ranges.min = 0.1f;
+        parameter.ranges.max = 1000.0f;
+        break;
+    case PARAM_FLTENV_SUSTAIN:
+        parameter.hints      = 0;
+        parameter.name       = "Filter Sustain";
+        parameter.symbol     = "fltsustain";
+        parameter.ranges.def = 1.0f;
+        parameter.ranges.min = 0.0f;
+        parameter.ranges.max = 1.0f;
+        break;
+    case PARAM_FLTENV_RELEASE:
+        parameter.hints      = kParameterIsLogarithmic;
+        parameter.name       = "Filter Release";
+        parameter.symbol     = "fltrelease";
+        parameter.ranges.def = 1.0f;
+        parameter.ranges.min = 0.1f;
+        parameter.ranges.max = 1000.0f;
+        break;
+    case PARAM_FLTENV_KEYFOLLOW:
+        parameter.hints      = 0;
+        parameter.name       = "Filter Key-follow";
+        parameter.symbol     = "fltkeyfollow";
         parameter.ranges.def = 0.0f;
         parameter.ranges.min = 0.0f;
         parameter.ranges.max = 1.0f;
@@ -653,16 +696,26 @@ float DistrhoPluginSapphire::getParameterValue(uint32_t index) const
         return bandwidth;
     case PARAM_BANDWIDTH_EXPONENT:
         return bandwidth_exponent;
-    case PARAM_EXCITATION_ATTACK:
-        return excitation.attack;
-    case PARAM_EXCITATION_DECAY:
-        return excitation.decay;
-    case PARAM_EXCITATION_SUSTAIN:
-        return excitation.sustain;
-    case PARAM_EXCITATION_RELEASE:
-        return excitation.release;
-    case PARAM_EXCITATION_SCALING:
-        return excitation.scaling;
+    case PARAM_AMPENV_ATTACK:
+        return amplitude_envelope.attack;
+    case PARAM_AMPENV_DECAY:
+        return amplitude_envelope.decay;
+    case PARAM_AMPENV_SUSTAIN:
+        return amplitude_envelope.sustain;
+    case PARAM_AMPENV_RELEASE:
+        return amplitude_envelope.release;
+    case PARAM_AMPENV_KEYFOLLOW:
+        return amplitude_envelope.keyfollow;
+    case PARAM_FLTENV_ATTACK:
+        return filter_envelope.attack;
+    case PARAM_FLTENV_DECAY:
+        return filter_envelope.decay;
+    case PARAM_FLTENV_SUSTAIN:
+        return filter_envelope.sustain;
+    case PARAM_FLTENV_RELEASE:
+        return filter_envelope.release;
+    case PARAM_FLTENV_KEYFOLLOW:
+        return filter_envelope.keyfollow;
     case PARAM_LFO_TYPE:
         return (float) lfo.type;
     case PARAM_LFO_FREQUENCY:
@@ -738,20 +791,35 @@ void DistrhoPluginSapphire::setParameterValue(uint32_t index, float value)
         bandwidth_exponent=value;
         invalidate_waveform();
         break;
-    case PARAM_EXCITATION_ATTACK:
-        excitation.attack=value;
+    case PARAM_AMPENV_ATTACK:
+        amplitude_envelope.attack=value;
         break;
-    case PARAM_EXCITATION_DECAY:
-        excitation.decay=value;
+    case PARAM_AMPENV_DECAY:
+        amplitude_envelope.decay=value;
         break;
-    case PARAM_EXCITATION_SUSTAIN:
-        excitation.sustain=value;
+    case PARAM_AMPENV_SUSTAIN:
+        amplitude_envelope.sustain=value;
         break;
-    case PARAM_EXCITATION_RELEASE:
-        excitation.release=value;
+    case PARAM_AMPENV_RELEASE:
+        amplitude_envelope.release=value;
         break;
-    case PARAM_EXCITATION_SCALING:
-        excitation.scaling=value;
+    case PARAM_AMPENV_KEYFOLLOW:
+        amplitude_envelope.keyfollow=value;
+        break;
+    case PARAM_FLTENV_ATTACK:
+        filter_envelope.attack=value;
+        break;
+    case PARAM_FLTENV_DECAY:
+        filter_envelope.decay=value;
+        break;
+    case PARAM_FLTENV_SUSTAIN:
+        filter_envelope.sustain=value;
+        break;
+    case PARAM_FLTENV_RELEASE:
+        filter_envelope.release=value;
+        break;
+    case PARAM_FLTENV_KEYFOLLOW:
+        filter_envelope.keyfollow=value;
         break;
     case PARAM_LFO_TYPE:
         lfo.type=(LFOParameters::lfo_type_t) value;
