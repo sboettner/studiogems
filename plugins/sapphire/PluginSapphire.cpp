@@ -316,7 +316,7 @@ struct DistrhoPluginSapphire::Voice {
     Envelope            filter_envelope;
     LFO                 lfo;
 
-    ExcitationUpsampler excitation_upsampler;
+    ExcitationUpsampler ampenv_upsampler;
     ExcitationUpsampler cutoff_upsampler;
 
     Voice(const DistrhoPluginSapphire& plugin, int note, float velocity, float delay, float samplerate):
@@ -326,7 +326,7 @@ struct DistrhoPluginSapphire::Voice {
         amplitude_envelope(plugin.amplitude_envelope, note, velocity, delay/32, samplerate/32),
         filter_envelope(plugin.filter_envelope, note, velocity, delay/32, samplerate/32),
         lfo(plugin.lfo, note, delay/32, samplerate/32),
-        excitation_upsampler(32),
+        ampenv_upsampler(32),
         cutoff_upsampler(32)
     {
         phase0=ldexpf(rand()&0xfffff, -20);
@@ -351,21 +351,22 @@ struct DistrhoPluginSapphire::Voice {
 
 void DistrhoPluginSapphire::Voice::produce(Waveform* waveform, float* out0, float* out1, int count)
 {
-    float* excbuf=(float*) alloca(count*sizeof(float)/16);
-    float* excbuf_upsampled=(float*) alloca(count*sizeof(float));
+    float* ampenvbuf=(float*) alloca(count*sizeof(float)/16);
+    float* fltenvbuf=(float*) alloca(count*sizeof(float)/16);
+    float* ampenvbuf_upsampled=(float*) alloca(count*sizeof(float));
     float* lfobuf=(float*) alloca(count*sizeof(float)/16);
     float* cutoffbuf=(float*) alloca(count*sizeof(float)/16);
     float* cutoffbuf_upsampled=(float*) alloca(count*sizeof(float));
 
-    amplitude_envelope.produce(excbuf, count/32);
+    amplitude_envelope.produce(ampenvbuf, count/32);
+    filter_envelope.produce(fltenvbuf, count/32);
     lfo.produce(lfobuf, count/32);
 
-    const float basefreq=440.0f * expf((note-69)*M_LN2/12) / samplerate;
-    const float log_cutoff=logf(plugin.filter.cutoff);
+    const float cutoff=plugin.filter.cutoff * expf(plugin.filter.keyfollow*(note-69)*M_LN2/12);
     for (int i=0;i<count/32;i++)
-        cutoffbuf[i]=tanf(std::min(basefreq*expf(log_cutoff * powf(excbuf[i], plugin.filter.envelope) + lfobuf[i]*plugin.filter.lfo), 0.475f)*M_PI/2);
+        cutoffbuf[i]=tanf(std::min(cutoff/samplerate*powf(20000.0f/plugin.filter.cutoff, plugin.filter.envelope*fltenvbuf[i]), 0.475f)*M_PI/2);
 
-    excitation_upsampler.upsample(excbuf_upsampled, excbuf, count);
+    ampenv_upsampler.upsample(ampenvbuf_upsampled, ampenvbuf, count);
     cutoff_upsampler.upsample(cutoffbuf_upsampled, cutoffbuf, count);
 
     const float spread=expf(M_LN2*plugin.filter.spread/3);
@@ -381,8 +382,8 @@ void DistrhoPluginSapphire::Voice::produce(Waveform* waveform, float* out0, floa
 
         const float g=cutoffbuf_upsampled[i];
 
-        out0[i]+=lp0((waveform->sample[s0]*(1.0-s) + waveform->sample[(s0+1)&(waveform->length-1)]*s) * excbuf_upsampled[i], g, spread, plugin.filter.feedback);
-        out1[i]+=lp1((waveform->sample[t0]*(1.0-t) + waveform->sample[(t0+1)&(waveform->length-1)]*t) * excbuf_upsampled[i], g, spread, plugin.filter.feedback);
+        out0[i]+=lp0((waveform->sample[s0]*(1.0-s) + waveform->sample[(s0+1)&(waveform->length-1)]*s) * ampenvbuf_upsampled[i], g, spread, plugin.filter.feedback);
+        out1[i]+=lp1((waveform->sample[t0]*(1.0-t) + waveform->sample[(t0+1)&(waveform->length-1)]*t) * ampenvbuf_upsampled[i], g, spread, plugin.filter.feedback);
 
         phase0+=step;
         if (phase0>=1)
@@ -620,15 +621,15 @@ void DistrhoPluginSapphire::initParameter(uint32_t index, Parameter& parameter)
     case PARAM_FILTER_CUTOFF:
         parameter.hints      = kParameterIsLogarithmic;
         parameter.name       = "Filter Cut-off";
-        parameter.symbol     = "filtercutoff";
-        parameter.ranges.def = 256.0f;
-        parameter.ranges.min = 1.0f;
-        parameter.ranges.max = 256.0f;
+        parameter.symbol     = "cutoff";
+        parameter.ranges.def = 1000.0f;
+        parameter.ranges.min = 20.0f;
+        parameter.ranges.max = 20000.0f;
         break;
     case PARAM_FILTER_SPREAD:
         parameter.hints      = 0;
         parameter.name       = "Filter Spread";
-        parameter.symbol     = "filterspread";
+        parameter.symbol     = "spread";
         parameter.ranges.def = 0.0f;
         parameter.ranges.min = 0.0f;
         parameter.ranges.max = 3.0f;
@@ -638,16 +639,8 @@ void DistrhoPluginSapphire::initParameter(uint32_t index, Parameter& parameter)
         parameter.name       = "Filter Envelope";
         parameter.symbol     = "filterenv";
         parameter.ranges.def = 0.0f;
-        parameter.ranges.min = 0.0;
-        parameter.ranges.max = 2.0f;
-        break;
-    case PARAM_FILTER_LFO:
-        parameter.hints      = 0;
-        parameter.name       = "Filter LFO";
-        parameter.symbol     = "filterlfo";
-        parameter.ranges.def = 0.0f;
-        parameter.ranges.min = 0.0;
-        parameter.ranges.max = 2.0f;
+        parameter.ranges.min = 0.0f;
+        parameter.ranges.max = 1.0f;
         break;
     case PARAM_FILTER_MODULATION:
         parameter.hints      = 0;
@@ -657,10 +650,18 @@ void DistrhoPluginSapphire::initParameter(uint32_t index, Parameter& parameter)
         parameter.ranges.min = 0.0;
         parameter.ranges.max = 2.0f;
         break;
+    case PARAM_FILTER_KEYFOLLOW:
+        parameter.hints      = 0;
+        parameter.name       = "Filter Key-follow";
+        parameter.symbol     = "cutoffkeyfollow";
+        parameter.ranges.def = 0.0f;
+        parameter.ranges.min = 0.0;
+        parameter.ranges.max = 1.0f;
+        break;
     case PARAM_FILTER_FEEDBACK:
         parameter.hints      = 0;
         parameter.name       = "Filter Feedback";
-        parameter.symbol     = "filterfb";
+        parameter.symbol     = "feedback";
         parameter.ranges.def = 0.0f;
         parameter.ranges.min = -1.0f;
         parameter.ranges.max = 4.0f;
@@ -728,10 +729,10 @@ float DistrhoPluginSapphire::getParameterValue(uint32_t index) const
         return filter.spread;
     case PARAM_FILTER_ENVELOPE:
         return filter.envelope;
-    case PARAM_FILTER_LFO:
-        return filter.lfo;
     case PARAM_FILTER_MODULATION:
         return filter.modulation;
+    case PARAM_FILTER_KEYFOLLOW:
+        return filter.keyfollow;
     case PARAM_FILTER_FEEDBACK:
         return filter.feedback;
     default:
@@ -839,11 +840,11 @@ void DistrhoPluginSapphire::setParameterValue(uint32_t index, float value)
     case PARAM_FILTER_ENVELOPE:
         filter.envelope=value;
         break;
-    case PARAM_FILTER_LFO:
-        filter.lfo=value;
-        break;
     case PARAM_FILTER_MODULATION:
         filter.modulation=value;
+        break;
+    case PARAM_FILTER_KEYFOLLOW:
+        filter.keyfollow=value;
         break;
     case PARAM_FILTER_FEEDBACK:
         filter.feedback=value;

@@ -719,8 +719,8 @@ private:
     ScopedPointer<Knob>             knob_cutoff;
     ScopedPointer<Knob>             knob_spread;
     ScopedPointer<Knob>             knob_envelope;
-    ScopedPointer<Knob>             knob_lfo;
     ScopedPointer<Knob>             knob_modulation;
+    ScopedPointer<Knob>             knob_keyfollow;
     ScopedPointer<Knob>             knob_feedback;
 };
 
@@ -735,7 +735,7 @@ DistrhoUISapphire::FilterPanel::FilterPanel(DistrhoUISapphire* mainwnd, int x0, 
 
     knob_cutoff=new Knob(this, Knob::Size::SMALL, x0+16, y0+48, 96, 120);
     knob_cutoff->set_name("Cut-off");
-    knob_cutoff->setRange(1.0f, 256.0f);
+    knob_cutoff->setRange(20.0f, 20000.0f);
     knob_cutoff->setId(DistrhoPluginSapphire::PARAM_FILTER_CUTOFF);
     knob_cutoff->setCallback(this);
 
@@ -747,21 +747,21 @@ DistrhoUISapphire::FilterPanel::FilterPanel(DistrhoUISapphire* mainwnd, int x0, 
 
     knob_envelope=new Knob(this, Knob::Size::SMALL, x0+208, y0+48, 96, 120);
     knob_envelope->set_name("Envelope");
-    knob_envelope->setRange(0.0f, 2.0f);
+    knob_envelope->setRange(0.0f, 1.0f);
     knob_envelope->setId(DistrhoPluginSapphire::PARAM_FILTER_ENVELOPE);
     knob_envelope->setCallback(this);
 
-    knob_lfo=new Knob(this, Knob::Size::SMALL, x0+304, y0+48, 96, 120);
-    knob_lfo->set_name("LFO");
-    knob_lfo->setRange(0.0f, 2.0f);
-    knob_lfo->setId(DistrhoPluginSapphire::PARAM_FILTER_LFO);
-    knob_lfo->setCallback(this);
-
-    knob_modulation=new Knob(this, Knob::Size::SMALL, x0+400, y0+48, 96, 120);
+    knob_modulation=new Knob(this, Knob::Size::SMALL, x0+304, y0+48, 96, 120);
     knob_modulation->set_name("Modulation");
-    knob_modulation->setRange(0.0f, 2.0f);
+    knob_modulation->setRange(0.0f, 1.0f);
     knob_modulation->setId(DistrhoPluginSapphire::PARAM_FILTER_MODULATION);
     knob_modulation->setCallback(this);
+
+    knob_keyfollow=new Knob(this, Knob::Size::SMALL, x0+400, y0+48, 96, 120);
+    knob_keyfollow->set_name("Key follow");
+    knob_keyfollow->setRange(0.0f, 1.0f);
+    knob_keyfollow->setId(DistrhoPluginSapphire::PARAM_FILTER_KEYFOLLOW);
+    knob_keyfollow->setCallback(this);
 
     knob_feedback=new Knob(this, Knob::Size::SMALL, x0+496, y0+48, 96, 120);
     knob_feedback->set_name("Feedback");
@@ -783,8 +783,8 @@ void DistrhoUISapphire::FilterPanel::parameterChanged(uint32_t index, float valu
     case DistrhoPluginSapphire::PARAM_FILTER_ENVELOPE:
         knob_envelope->setValue(value);
         break;
-    case DistrhoPluginSapphire::PARAM_FILTER_LFO:
-        knob_lfo->setValue(value);
+    case DistrhoPluginSapphire::PARAM_FILTER_KEYFOLLOW:
+        knob_keyfollow->setValue(value);
         break;
     case DistrhoPluginSapphire::PARAM_FILTER_MODULATION:
         knob_modulation->setValue(value);
