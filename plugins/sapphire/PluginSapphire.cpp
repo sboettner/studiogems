@@ -171,58 +171,23 @@ LFO::LFO(const LFOParameters& params, int note, float delay, float samplerate):p
 
 void LFO::produce(float* out, int count)
 {
-    switch (params.type) {
-    case LFOParameters::LFO_TYPE_SINE:
-        for (int i=0;i<count;i++) {
-            out[i]=sinf(2*M_PI*phase);
+    for (int i=0;i<count;i++) {
+        const float t=phase;
 
-            phase+=step;
-            if (phase>=1.0f)
-                phase-=1.0f;
-        }
-        break;
-    case LFOParameters::LFO_TYPE_FALLING:
-        for (int i=0;i<count;i++) {
-            out[i]=-phase;
-            phase+=step;
-        }
-        break;
-    case LFOParameters::LFO_TYPE_RISING:
-        for (int i=0;i<count;i++) {
-            phase+=step;
-            out[i]=logf(1.0f - expf(-phase));
-        }
-        break;
-    case LFOParameters::LFO_TYPE_ONESHOT:
-        for (int i=0;i<count;i++) {
-            phase+=step;
-            out[i]=logf(phase) - phase;
-        }
-        break;
-    case LFOParameters::LFO_TYPE_NOISE:
-        for (int i=0;i<count;i++) {
-            const float t=phase;
+        out[i]=coeffs[0]*(1-t)*(1-t)*(1-t)/6 +
+                coeffs[1]*(3*t*t*t - 6*t*t + 4)/6 +
+                coeffs[2]*(-3*t*t*t + 3*t*t + 3*t + 1)/6 +
+                coeffs[3]*t*t*t/6;
 
-            out[i]=coeffs[0]*(1-t)*(1-t)*(1-t)/6 +
-                   coeffs[1]*(3*t*t*t - 6*t*t + 4)/6 +
-                   coeffs[2]*(-3*t*t*t + 3*t*t + 3*t + 1)/6 +
-                   coeffs[3]*t*t*t/6;
-
-            phase+=step;
-            if (phase>=1.0f) {
-                phase-=1.0f;
-                
-                coeffs[0]=coeffs[1];
-                coeffs[1]=coeffs[2];
-                coeffs[2]=coeffs[3];
-                coeffs[3]=ldexpf((rand()&0xffffff) - 0x800000, -23);
-            }
+        phase+=step;
+        if (phase>=1.0f) {
+            phase-=1.0f;
+            
+            coeffs[0]=coeffs[1];
+            coeffs[1]=coeffs[2];
+            coeffs[2]=coeffs[3];
+            coeffs[3]=ldexpf((rand()&0xffffff) - 0x800000, -23) * params.depth;
         }
-        break;
-    default:
-        for (int i=0;i<count;i++)
-            out[i]=0.0f;
-        break;
     }
 }
 
@@ -314,10 +279,12 @@ struct DistrhoPluginSapphire::Voice {
 
     Envelope            amplitude_envelope;
     Envelope            filter_envelope;
-    LFO                 lfo;
+    LFO                 amplfo;
+    LFO                 pitchlfo;
 
     ExcitationUpsampler ampenv_upsampler;
     ExcitationUpsampler cutoff_upsampler;
+    ExcitationUpsampler pitchlfo_upsampler;
 
     Voice(const DistrhoPluginSapphire& plugin, int note, float velocity, float delay, float samplerate):
         plugin(plugin),
@@ -325,9 +292,11 @@ struct DistrhoPluginSapphire::Voice {
         samplerate(samplerate),
         amplitude_envelope(plugin.amplitude_envelope, note, velocity, delay/32, samplerate/32),
         filter_envelope(plugin.filter_envelope, note, velocity, delay/32, samplerate/32),
-        lfo(plugin.lfo, note, delay/32, samplerate/32),
+        amplfo(plugin.amplfo, note, delay/32, samplerate/32),
+        pitchlfo(plugin.pitchlfo, note, delay/32, samplerate/32),
         ampenv_upsampler(32),
-        cutoff_upsampler(32)
+        cutoff_upsampler(32),
+        pitchlfo_upsampler(32)
     {
         phase0=ldexpf(rand()&0xfffff, -20);
         phase1=ldexpf(rand()&0xfffff, -20);
@@ -354,20 +323,26 @@ void DistrhoPluginSapphire::Voice::produce(Waveform* waveform, float* out0, floa
     float* ampenvbuf=(float*) alloca(count*sizeof(float)/16);
     float* fltenvbuf=(float*) alloca(count*sizeof(float)/16);
     float* ampenvbuf_upsampled=(float*) alloca(count*sizeof(float));
-    float* lfobuf=(float*) alloca(count*sizeof(float)/16);
+    float* amplfobuf=(float*) alloca(count*sizeof(float)/16);
+    float* pitchlfobuf=(float*) alloca(count*sizeof(float)/16);
+    float* pitchlfobuf_upsampled=(float*) alloca(count*sizeof(float));
     float* cutoffbuf=(float*) alloca(count*sizeof(float)/16);
     float* cutoffbuf_upsampled=(float*) alloca(count*sizeof(float));
 
     amplitude_envelope.produce(ampenvbuf, count/32);
     filter_envelope.produce(fltenvbuf, count/32);
-    lfo.produce(lfobuf, count/32);
+    amplfo.produce(amplfobuf, count/32);
+    pitchlfo.produce(pitchlfobuf, count/32);
 
     const float cutoff=plugin.filter.cutoff * expf(plugin.filter.keyfollow*(note-69)*M_LN2/12);
-    for (int i=0;i<count/32;i++)
+    for (int i=0;i<count/32;i++) {
         cutoffbuf[i]=tanf(std::min(cutoff/samplerate*powf(20000.0f/plugin.filter.cutoff, plugin.filter.envelope*fltenvbuf[i]), 0.475f)*M_PI/2);
+        ampenvbuf[i]*=1.0f - amplfobuf[i];
+    }
 
     ampenv_upsampler.upsample(ampenvbuf_upsampled, ampenvbuf, count);
     cutoff_upsampler.upsample(cutoffbuf_upsampled, cutoffbuf, count);
+    pitchlfo_upsampler.upsample(pitchlfobuf_upsampled, pitchlfobuf, count);
 
     const float spread=expf(M_LN2*plugin.filter.spread/3);
 
@@ -385,11 +360,13 @@ void DistrhoPluginSapphire::Voice::produce(Waveform* waveform, float* out0, floa
         out0[i]+=lp0((waveform->sample[s0]*(1.0-s) + waveform->sample[(s0+1)&(waveform->length-1)]*s) * ampenvbuf_upsampled[i], g, spread, plugin.filter.feedback);
         out1[i]+=lp1((waveform->sample[t0]*(1.0-t) + waveform->sample[(t0+1)&(waveform->length-1)]*t) * ampenvbuf_upsampled[i], g, spread, plugin.filter.feedback);
 
-        phase0+=step;
+        float thisstep=step * (1.0f + (pitchlfobuf_upsampled[i] - plugin.pitchlfo.depth/2)/6);
+
+        phase0+=thisstep;
         if (phase0>=1)
             phase0-=1;
 
-        phase1+=step;
+        phase1+=thisstep;
         if (phase1>=1)
             phase1-=1;
     }
@@ -594,26 +571,34 @@ void DistrhoPluginSapphire::initParameter(uint32_t index, Parameter& parameter)
         parameter.ranges.min = 0.0f;
         parameter.ranges.max = 1.0f;
         break;
-    case PARAM_LFO_TYPE:
-        parameter.hints      = kParameterIsInteger;
-        parameter.name       = "LFO Type";
-        parameter.symbol     = "lfotype";
-        parameter.ranges.def = 0.0f;
-        parameter.ranges.min = 0.0f;
-        parameter.ranges.max = 4.0f;
-        break;
-    case PARAM_LFO_FREQUENCY:
+    case PARAM_AMPLFO_FREQUENCY:
         parameter.hints      = kParameterIsLogarithmic;
-        parameter.name       = "LFO Frequency";
-        parameter.symbol     = "lfofreq";
+        parameter.name       = "Amp. LFO Frequency";
+        parameter.symbol     = "amplfofreq";
         parameter.ranges.def = 1.0f;
         parameter.ranges.min = 0.1f;
         parameter.ranges.max = 10.0f;
         break;
-    case PARAM_LFO_SCALING:
+    case PARAM_AMPLFO_DEPTH:
         parameter.hints      = 0;
-        parameter.name       = "LFO Scaling";
-        parameter.symbol     = "lfoscaling";
+        parameter.name       = "Amp. LFO Depth";
+        parameter.symbol     = "amplfodepth";
+        parameter.ranges.def = 0.0f;
+        parameter.ranges.min = 0.0f;
+        parameter.ranges.max = 1.0f;
+        break;
+    case PARAM_PITCHLFO_FREQUENCY:
+        parameter.hints      = kParameterIsLogarithmic;
+        parameter.name       = "Pitch LFO Frequency";
+        parameter.symbol     = "pitchlfofreq";
+        parameter.ranges.def = 1.0f;
+        parameter.ranges.min = 0.1f;
+        parameter.ranges.max = 10.0f;
+        break;
+    case PARAM_PITCHLFO_DEPTH:
+        parameter.hints      = 0;
+        parameter.name       = "Pitch LFO Depth";
+        parameter.symbol     = "pitchlfodepth";
         parameter.ranges.def = 0.0f;
         parameter.ranges.min = 0.0f;
         parameter.ranges.max = 1.0f;
@@ -717,12 +702,14 @@ float DistrhoPluginSapphire::getParameterValue(uint32_t index) const
         return filter_envelope.release;
     case PARAM_FLTENV_KEYFOLLOW:
         return filter_envelope.keyfollow;
-    case PARAM_LFO_TYPE:
-        return (float) lfo.type;
-    case PARAM_LFO_FREQUENCY:
-        return lfo.frequency;
-    case PARAM_LFO_SCALING:
-        return lfo.scaling;
+    case PARAM_AMPLFO_FREQUENCY:
+        return amplfo.frequency;
+    case PARAM_AMPLFO_DEPTH:
+        return amplfo.depth;
+    case PARAM_PITCHLFO_FREQUENCY:
+        return pitchlfo.frequency;
+    case PARAM_PITCHLFO_DEPTH:
+        return pitchlfo.depth;
     case PARAM_FILTER_CUTOFF:
         return filter.cutoff;
     case PARAM_FILTER_SPREAD:
@@ -822,14 +809,17 @@ void DistrhoPluginSapphire::setParameterValue(uint32_t index, float value)
     case PARAM_FLTENV_KEYFOLLOW:
         filter_envelope.keyfollow=value;
         break;
-    case PARAM_LFO_TYPE:
-        lfo.type=(LFOParameters::lfo_type_t) value;
+    case PARAM_AMPLFO_FREQUENCY:
+        amplfo.frequency=value;
         break;
-    case PARAM_LFO_FREQUENCY:
-        lfo.frequency=value;
+    case PARAM_AMPLFO_DEPTH:
+        amplfo.depth=value;
         break;
-    case PARAM_LFO_SCALING:
-        lfo.scaling=value;
+    case PARAM_PITCHLFO_FREQUENCY:
+        pitchlfo.frequency=value;
+        break;
+    case PARAM_PITCHLFO_DEPTH:
+        pitchlfo.depth=value;
         break;
     case PARAM_FILTER_CUTOFF:
         filter.cutoff=value;

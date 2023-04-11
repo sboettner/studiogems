@@ -519,96 +519,9 @@ void DistrhoUISapphire::EnvelopePanel::knobValueChanged(SubWidget* widget, float
 }
 
 
-class DistrhoUISapphire::LFODisplay:public GraphDisplay {
-public:
-    LFODisplay(Widget* parent, uint x0, uint y0, uint width, uint height);
-
-    void set_type(LFOParameters::lfo_type_t);
-    void set_frequency(float);
-
-protected:
-    void draw_graph(cairo_t*) override;
-
-private:
-    LFOParameters::lfo_type_t   type=LFOParameters::LFO_TYPE_SINE;
-    float                       frequency=0.0f;
-};
-
-
-DistrhoUISapphire::LFODisplay::LFODisplay(Widget* parent, uint x0, uint y0, uint width, uint height):GraphDisplay(parent, x0, y0, width, height)
-{
-}
-
-
-void DistrhoUISapphire::LFODisplay::set_type(LFOParameters::lfo_type_t t)
-{
-    type=t;
-    repaint();
-}
-
-
-void DistrhoUISapphire::LFODisplay::set_frequency(float f)
-{
-    frequency=f;
-    repaint();
-}
-
-
-void DistrhoUISapphire::LFODisplay::draw_graph(cairo_t* cr)
-{
-    cairo_set_source_rgb(cr, 0.2, 1.0, 0.5);
-    cairo_set_line_width(cr, 3.0);
-    cairo_set_line_cap(cr, CAIRO_LINE_CAP_ROUND);
-   
-    switch (type) {
-    case LFOParameters::LFO_TYPE_SINE:
-        plot(cr, 0.0f, 1.0f, -0.25f, 1.25f, [freq=2*M_PI*frequency](float t) {
-            return std::pair<float, float>(
-                expf(-1.0f+sinf(freq*t)),
-                expf(-1.0f+sinf(freq*t))*cosf(freq*t)*freq
-            );
-        });
-        break;
-    case LFOParameters::LFO_TYPE_FALLING:
-        plot(cr, 0.0f, 1.0f, -0.25f, 1.25f, [freq=frequency](float t) {
-            return std::pair<float, float>(
-                expf(-freq*t),
-                -freq*expf(-freq*t)
-            );
-        });
-        break;
-    case LFOParameters::LFO_TYPE_RISING:
-        plot(cr, 0.0f, 1.0f, -0.25f, 1.25f, [scale=1/frequency](float t) {
-            if (t>0) {
-                return std::pair<float, float>(
-                    expf(-scale/t),
-                    scale*expf(-scale/t)/(t*t)
-                );
-            }
-            else
-                return std::pair<float, float>(0.0f, 0.0f);
-        });
-        break;
-    case LFOParameters::LFO_TYPE_ONESHOT:
-        plot(cr, 0.0f, 1.0f, -0.25f, 1.25f, [freq=frequency](float t) {
-            if (t>0) {
-                const float s=t*freq;
-                return std::pair<float, float>(
-                    expf(2 - s - 1/s),
-                    expf(2 - s - 1/s) * (-freq + 1/(s*t))
-                );
-            }
-            else
-                return std::pair<float, float>(0.0f, 0.0f);
-        });
-        break;
-    }
-}
-
-
 class DistrhoUISapphire::LFOPanel:public RaisedPanel, KnobEventHandler::Callback {
 public:
-    LFOPanel(DistrhoUISapphire*, int x0, int y0);
+    LFOPanel(DistrhoUISapphire*, int x0, int y0, uint parambase, const char* label);
 
     void parameterChanged(uint32_t index, float value);
 
@@ -619,59 +532,45 @@ protected:
 
 private:
     DistrhoUISapphire*              mainwnd;
+    uint                            parambase;
 
     ScopedPointer<TextLabel>        header;
-    ScopedPointer<Knob>             knob_type;
     ScopedPointer<Knob>             knob_frequency;
-    ScopedPointer<Knob>             knob_scaling;
-    ScopedPointer<LFODisplay>       display;
+    ScopedPointer<Knob>             knob_depth;
 };
 
 
-DistrhoUISapphire::LFOPanel::LFOPanel(DistrhoUISapphire* mainwnd, int x0, int y0):
-    RaisedPanel(mainwnd, x0, y0, 512, 176),
-    mainwnd(mainwnd)
+DistrhoUISapphire::LFOPanel::LFOPanel(DistrhoUISapphire* mainwnd, int x0, int y0, uint parambase, const char* label):
+    RaisedPanel(mainwnd, x0, y0, 224, 176),
+    mainwnd(mainwnd),
+    parambase(parambase)
 {
     header=new TextLabel(this, x0+12, y0+12, 480, 32, 8);
     header->set_color(Color(0.6f, 0.8f, 1.0f));
-    header->set_text("Low Frequency Oscillator");
+    header->set_text(label);
 
-    knob_type=new Knob(this, Knob::Size::SMALL, x0+16, y0+48, 96, 120);
-    knob_type->set_name("Type");
-    knob_type->setRange(0.0f, 4.0f);
-    knob_type->setStep(1.0f);
-    knob_type->setId(DistrhoPluginSapphire::PARAM_LFO_TYPE);
-    knob_type->setCallback(this);
-
-    knob_frequency=new Knob(this, Knob::Size::SMALL, x0+112, y0+48, 96, 120);
+    knob_frequency=new Knob(this, Knob::Size::SMALL, x0+16, y0+48, 96, 120);
     knob_frequency->set_name("Frequency");
     knob_frequency->setRange(0.1f, 10.0f);
-    knob_frequency->setId(DistrhoPluginSapphire::PARAM_LFO_FREQUENCY);
+    knob_frequency->setId(parambase);
     knob_frequency->setCallback(this);
 
-    knob_scaling=new Knob(this, Knob::Size::SMALL, x0+208, y0+48, 96, 120);
-    knob_scaling->set_name("Scaling");
-    knob_scaling->setRange(0.0f, 1.0f);
-    knob_scaling->setId(DistrhoPluginSapphire::PARAM_LFO_SCALING);
-    knob_scaling->setCallback(this);
-
-    display=new LFODisplay(this, x0+320, y0+56, 176, 104);
+    knob_depth=new Knob(this, Knob::Size::SMALL, x0+112, y0+48, 96, 120);
+    knob_depth->set_name("Depth");
+    knob_depth->setRange(0.0f, 1.0f);
+    knob_depth->setId(parambase+1);
+    knob_depth->setCallback(this);
 }
 
 
 void DistrhoUISapphire::LFOPanel::parameterChanged(uint32_t index, float value)
 {
-    switch (index) {
-    case DistrhoPluginSapphire::PARAM_LFO_TYPE:
-        knob_type->setValue(value);
-        display->set_type((LFOParameters::lfo_type_t) value);
-        break;
-    case DistrhoPluginSapphire::PARAM_LFO_FREQUENCY:
+    switch (index - parambase) {
+    case 0:
         knob_frequency->setValue(value);
-        display->set_frequency(value);
         break;
-    case DistrhoPluginSapphire::PARAM_LFO_SCALING:
-        knob_scaling->setValue(value);
+    case 1:
+        knob_depth->setValue(value);
         break;
     }
 }
@@ -692,12 +591,6 @@ void DistrhoUISapphire::LFOPanel::knobDragFinished(SubWidget* widget)
 void DistrhoUISapphire::LFOPanel::knobValueChanged(SubWidget* widget, float value)
 {
     mainwnd->setParameterValue(widget->getId(), value);
-
-    if (widget->getId()==DistrhoPluginSapphire::PARAM_LFO_TYPE)
-        display->set_type((LFOParameters::lfo_type_t) value);
-
-    if (widget->getId()==DistrhoPluginSapphire::PARAM_LFO_FREQUENCY)
-        display->set_frequency(value);
 }
 
 
@@ -816,7 +709,7 @@ void DistrhoUISapphire::FilterPanel::knobValueChanged(SubWidget* widget, float v
 
 DistrhoUISapphire::DistrhoUISapphire()
 {
-    setSize(1696, 784);
+    setSize(1696, 976);
 
     TextLayout::register_font_file("/home/stb/fonts/orbitron-master/Orbitron Black.otf");
     TextLayout::register_font_file("/home/stb/fonts/orbitron-master/Orbitron Bold.otf");
@@ -828,9 +721,13 @@ DistrhoUISapphire::DistrhoUISapphire()
     title->set_text("Sapphire Pad Synth");
 
     spectrumpanel=new SpectrumPanel(this, 16, 64);
+
     ampenvpanel=new EnvelopePanel(this, 16, 592, "Amp. Envelope", DistrhoPluginSapphire::PARAM_AMPENV_ATTACK);
     filterenvpanel=new EnvelopePanel(this, 544, 592, "Filter Envelope", DistrhoPluginSapphire::PARAM_FLTENV_ATTACK);
     filterpanel=new FilterPanel(this, 1072, 592);
+
+    amplfopanel=new LFOPanel(this, 16, 784, DistrhoPluginSapphire::PARAM_AMPLFO_FREQUENCY, "Amp. Drift");
+    pitchlfopanel=new LFOPanel(this, 256, 784, DistrhoPluginSapphire::PARAM_PITCHLFO_FREQUENCY, "Pitch Drift");
 }
 
 

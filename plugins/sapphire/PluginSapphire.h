@@ -46,17 +46,8 @@ struct FilterParameters {
 
 
 struct LFOParameters {
-    enum lfo_type_t {
-        LFO_TYPE_SINE,
-        LFO_TYPE_FALLING,
-        LFO_TYPE_RISING,
-        LFO_TYPE_ONESHOT,
-        LFO_TYPE_NOISE
-    };
-
-    lfo_type_t  type=LFO_TYPE_SINE;
     float       frequency=1.0f;
-    float       scaling=1.0f;
+    float       depth=0.0f;
 };
 
 
@@ -119,9 +110,10 @@ public:
         PARAM_FLTENV_SUSTAIN,
         PARAM_FLTENV_RELEASE,
         PARAM_FLTENV_KEYFOLLOW,
-        PARAM_LFO_TYPE,
-        PARAM_LFO_FREQUENCY,
-        PARAM_LFO_SCALING,
+        PARAM_AMPLFO_FREQUENCY,
+        PARAM_AMPLFO_DEPTH,
+        PARAM_PITCHLFO_FREQUENCY,
+        PARAM_PITCHLFO_DEPTH,
         PARAM_FILTER_CUTOFF,
         PARAM_FILTER_SPREAD,
         PARAM_FILTER_ENVELOPE,
@@ -229,8 +221,9 @@ private:
 
     EnvelopeParameters      amplitude_envelope;
     EnvelopeParameters      filter_envelope;
-    LFOParameters           lfo;
     FilterParameters        filter;
+    LFOParameters           amplfo;
+    LFOParameters           pitchlfo;
 
     Downsampler downsamplers[2];
 

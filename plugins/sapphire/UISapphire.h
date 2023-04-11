@@ -52,14 +52,14 @@ private:
     class SpectrumPanel;
     class EnvelopePanel;
     class LFOPanel;
-    class LFODisplay;
     class FilterPanel;
 
     ScopedPointer<TextLabel>        title;
     ScopedPointer<SpectrumPanel>    spectrumpanel;
     ScopedPointer<EnvelopePanel>    ampenvpanel;
     ScopedPointer<EnvelopePanel>    filterenvpanel;
-    ScopedPointer<LFOPanel>         lfopanel;
+    ScopedPointer<LFOPanel>         amplfopanel;
+    ScopedPointer<LFOPanel>         pitchlfopanel;
     ScopedPointer<FilterPanel>      filterpanel;
 
     DISTRHO_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(DistrhoUISapphire)
